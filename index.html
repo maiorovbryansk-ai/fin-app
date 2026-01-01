@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>MoneyFlow</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* =====================
+   BASIC DARK UI
+===================== */
+:root {
+  --bg:#0b0f14;
+  --panel:#0f172a;
+  --border:#1f2937;
+  --text:#e5e7eb;
+  --muted:#9ca3af;
+  --accent:#7c3aed;
+}
+
+* { box-sizing:border-box; }
+
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:system-ui;
+}
+
+.app {
+  display:grid;
+  grid-template-columns:240px 1fr;
+  min-height:100vh;
+}
+
+aside {
+  background:#020617;
+  padding:20px;
+  border-right:1px solid var(--border);
+}
+
+main {
+  padding:24px;
+}
+
+button,input,select {
+  background:#020617;
+  color:var(--text);
+  border:1px solid var(--border);
+  padding:10px;
+  border-radius:8px;
+}
+
+button { cursor:pointer; }
+
+.card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  margin-bottom:16px;
+}
+
+nav button {
+  width:100%;
+  margin-bottom:8px;
+}
+
+/* Auth */
+#auth {
+  max-width:360px;
+  margin:100px auto;
+}
+.hidden { display:none; }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth" class="card">
+  <h2>MoneyFlow</h2>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Пароль">
+  <button onclick="login()">Войти / Регистрация</button>
+</div>
+
+<!-- APP -->
+<div id="app" class="app hidden">
+  <aside>
+    <h3>MoneyFlow</h3>
+    <p id="userEmail" style="font-size:13px;color:var(--muted)"></p>
+
+    <nav>
+      <button onclick="showTab('dashboard')">🏠 Дэшборд</button>
+      <button onclick="showTab('cards')">💳 Карты</button>
+      <button onclick="showTab('expenses')">🧾 Расходы</button>
+      <button onclick="showTab('categories')">🏷️ Категории</button>
+      <button onclick="showTab('payments')">📅 Платежи</button>
+    </nav>
+
+    <button onclick="logout()">Выйти</button>
+  </aside>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="tab">
+      <div class="card">
+        <h3>Общий баланс</h3>
+        <h1 id="totalBalance">—</h1>
+      </div>
+
+      <div class="card">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <!-- CARDS -->
+    <div id="cards" class="tab hidden">
+      <div class="card">
+        <h3>Добавить карту</h3>
+        <input id="cardName" placeholder="Название">
+        <input id="cardLast4" placeholder="Последние 4 цифры">
+        <input id="cardBalance" type="number" placeholder="Баланс">
+        <button onclick="addCard()">Добавить</button>
+      </div>
+
+      <div id="cardsList"></div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div id="expenses" class="tab hidden">
+      <div class="card">
+        <h3>Добавить расход</h3>
+        <input id="expenseAmount" type="number" placeholder="Сумма">
+        <select id="expenseCard"></select>
+        <select id="expenseCategory"></select>
+        <button onclick="addExpense()">Добавить</button>
+      </div>
+
+      <div id="expensesList"></div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div id="categories" class="tab hidden">
+      <div class="card">
+        <h3>Категории</h3>
+        <input id="categoryName" placeholder="Название">
+        <button onclick="addCategory()">Добавить</button>
+      </div>
+      <div id="categoriesList"></div>
+    </div>
+
+    <!-- PAYMENTS -->
+    <div id="payments" class="tab hidden">
+      <div class="card">
+        <h3>Платежи</h3>
+        <input id="paymentName" placeholder="Название">
+        <input id="paymentAmount" type="number" placeholder="Сумма">
+        <select id="paymentCard"></select>
+        <button onclick="addPayment()">Добавить</button>
+      </div>
+      <div id="paymentsList"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* =====================
+   SUPABASE INIT
+===================== */
+const SUPABASE_URL = "https://tzsqgwupguttgsuhbknb.supabase.co"
+const SUPABASE_KEY = "sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO"
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+/* =====================
+   AUTH
+===================== */
+async function login() {
+  const email = email.value
+  const password = password.value
+
+  let res = await supabase.auth.signInWithPassword({ email, password })
+  if (res.error) {
+    await supabase.auth.signUp({ email, password })
+  }
+}
+
+async function logout() {
+  await supabase.auth.signOut()
+}
+
+supabase.auth.onAuthStateChange((e, session) => {
+  if (session) {
+    auth.classList.add("hidden")
+    app.classList.remove("hidden")
+    userEmail.textContent = session.user.email
+    loadAll()
+  } else {
+    auth.classList.remove("hidden")
+    app.classList.add("hidden")
+  }
+})
+
+/* =====================
+   UI
+===================== */
+function showTab(id) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.add("hidden"))
+  document.getElementById(id).classList.remove("hidden")
+}
+
+/* =====================
+   DATA LOADERS
+===================== */
+async function loadAll() {
+  await loadCards()
+  await loadCategories()
+  await loadExpenses()
+  await loadPayments()
+  renderChart()
+}
+
+/* =====================
+   CARDS
+===================== */
+async function addCard() {
+  const user = (await supabase.auth.getUser()).data.user
+  await supabase.from("cards").insert({
+    user_id: user.id,
+    name: cardName.value,
+    last4: cardLast4.value,
+    balance: Number(cardBalance.value)
+  })
+  loadCards()
+}
+
+async function loadCards() {
+  const { data } = await supabase.from("cards").select("*")
+  cardsList.innerHTML = data.map(c =>
+    `<div class="card">${c.name} — ${c.balance}</div>`
+  ).join("")
+  expenseCard.innerHTML =
+  paymentCard.innerHTML =
+    data.map(c => `<option value="${c.id}">${c.name}</option>`).join("")
+}
+
+/* =====================
+   CATEGORIES
+===================== */
+async function addCategory() {
+  const user = (await supabase.auth.getUser()).data.user
+  await supabase.from("categories").insert({
+    user_id: user.id,
+    name: categoryName.value
+  })
+  loadCategories()
+}
+
+async function loadCategories() {
+  const { data } = await supabase.from("categories").select("*")
+  categoriesList.innerHTML = data.map(c =>
+    `<div class="card">${c.name}</div>`
+  ).join("")
+  expenseCategory.innerHTML =
+    data.map(c => `<option value="${c.id}">${c.name}</option>`).join("")
+}
+
+/* =====================
+   EXPENSES
+===================== */
+async function addExpense() {
+  const user = (await supabase.auth.getUser()).data.user
+  await supabase.from("expenses").insert({
+    user_id: user.id,
+    amount: Number(expenseAmount.value),
+    card_id: expenseCard.value,
+    category_id: expenseCategory.value
+  })
+  loadExpenses()
+}
+
+async function loadExpenses() {
+  const { data } = await supabase.from("expenses").select("*, cards(name)")
+  expensesList.innerHTML = data.map(e =>
+    `<div class="card">${e.amount} — ${e.cards.name}</div>`
+  ).join("")
+}
+
+/* =====================
+   PAYMENTS
+===================== */
+async function addPayment() {
+  const user = (await supabase.auth.getUser()).data.user
+  await supabase.from("payments").insert({
+    user_id: user.id,
+    name: paymentName.value,
+    amount: Number(paymentAmount.value),
+    card_id: paymentCard.value
+  })
+  loadPayments()
+}
+
+async function loadPayments() {
+  const { data } = await supabase.from("payments").select("*")
+  paymentsList.innerHTML = data.map(p =>
+    `<div class="card">${p.name} — ${p.amount}</div>`
+  ).join("")
+}
+
+/* =====================
+   CHART
+===================== */
+async function renderChart() {
+  const { data } = await supabase.from("expenses").select("amount, categories(name)")
+  const map = {}
+  data.forEach(e => {
+    const n = e.categories?.name || "Другое"
+    map[n] = (map[n] || 0) + e.amount
+  })
+
+  new Chart(chart, {
+    type: "pie",
+    data: {
+      labels: Object.keys(map),
+      datasets: [{ data: Object.values(map) }]
+    }
+  })
+}
+</script>
+</body>
+</html>

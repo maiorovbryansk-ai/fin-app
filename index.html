@@ -178,35 +178,38 @@ nav button {
 const SUPABASE_URL = "https://tzsqgwupguttgsuhbknb.supabase.co"
 const SUPABASE_KEY = "sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO"
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+const supabaseClient = supabase.createClient(
+   SUPABASE_URL,
+   SUPABASE_KEY
+);
 
 /* =====================
    AUTH
 ===================== */
 async function login() {
-  const emailInput = document.getElementById("email")
-  const passwordInput = document.getElementById("password")
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
 
-  const email = emailInput.value.trim()
-  const password = passwordInput.value.trim()
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
 
   if (!email || !password) {
-    alert("Введите email и пароль")
-    return
+    alert("Введите email и пароль");
+    return;
   }
 
   // пробуем войти
   const { error } = await supabaseClient.auth.signInWithPassword({
     email,
     password
-  })
+  });
 
   // если пользователя нет — регистрируем
   if (error) {
     const { error: signUpError } = await supabaseClient.auth.signUp({
       email,
       password
-    })
+    });
 
     if (signUpError) {
       alert(signUpError.message)

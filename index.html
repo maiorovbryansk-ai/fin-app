@@ -178,7 +178,7 @@ nav button {
 const SUPABASE_URL = "https://tzsqgwupguttgsuhbknb.supabase.co"
 const SUPABASE_KEY = "sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO"
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* =====================
    AUTH
@@ -196,14 +196,14 @@ async function login() {
   }
 
   // пробуем войти
-  const { error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabaseClient.auth.signInWithPassword({
     email,
     password
   })
 
   // если пользователя нет — регистрируем
   if (error) {
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { error: signUpError } = await supabaseClient.auth.signUp({
       email,
       password
     })
@@ -215,17 +215,17 @@ async function login() {
 }
 
 
-  let res = await supabase.auth.signInWithPassword({ email, password })
+  let res = await supabaseClient.auth.signInWithPassword({ email, password })
   if (res.error) {
-    await supabase.auth.signUp({ email, password })
+    await supabaseClient.auth.signUp({ email, password })
   }
 }
 
 async function logout() {
-  await supabase.auth.signOut()
+  await supabaseClient.auth.signOut()
 }
 
-supabase.auth.onAuthStateChange((e, session) => {
+supabaseClient.auth.onAuthStateChange((e, session) => {
   if (session) {
     auth.classList.add("hidden")
     app.classList.remove("hidden")
@@ -261,7 +261,7 @@ async function loadAll() {
 ===================== */
 async function addCard() {
   const user = (await supabase.auth.getUser()).data.user
-  await supabase.from("cards").insert({
+  await supabaseClient.from("cards").insert({
     user_id: user.id,
     name: cardName.value,
     last4: cardLast4.value,
@@ -271,7 +271,7 @@ async function addCard() {
 }
 
 async function loadCards() {
-  const { data } = await supabase.from("cards").select("*")
+  const { data } = await supabaseClient.from("cards").select("*")
   cardsList.innerHTML = data.map(c =>
     `<div class="card">${c.name} — ${c.balance}</div>`
   ).join("")
@@ -284,8 +284,8 @@ async function loadCards() {
    CATEGORIES
 ===================== */
 async function addCategory() {
-  const user = (await supabase.auth.getUser()).data.user
-  await supabase.from("categories").insert({
+  const user = (await supabaseClient.auth.getUser()).data.user
+  await supabaseClient.from("categories").insert({
     user_id: user.id,
     name: categoryName.value
   })
@@ -293,7 +293,7 @@ async function addCategory() {
 }
 
 async function loadCategories() {
-  const { data } = await supabase.from("categories").select("*")
+  const { data } = await supabaseClient.from("categories").select("*")
   categoriesList.innerHTML = data.map(c =>
     `<div class="card">${c.name}</div>`
   ).join("")
@@ -305,8 +305,8 @@ async function loadCategories() {
    EXPENSES
 ===================== */
 async function addExpense() {
-  const user = (await supabase.auth.getUser()).data.user
-  await supabase.from("expenses").insert({
+  const user = (await supabaseClient.auth.getUser()).data.user
+  await supabaseClient.from("expenses").insert({
     user_id: user.id,
     amount: Number(expenseAmount.value),
     card_id: expenseCard.value,
@@ -316,7 +316,7 @@ async function addExpense() {
 }
 
 async function loadExpenses() {
-  const { data } = await supabase.from("expenses").select("*, cards(name)")
+  const { data } = await supabaseClient.from("expenses").select("*, cards(name)")
   expensesList.innerHTML = data.map(e =>
     `<div class="card">${e.amount} — ${e.cards.name}</div>`
   ).join("")
@@ -326,8 +326,8 @@ async function loadExpenses() {
    PAYMENTS
 ===================== */
 async function addPayment() {
-  const user = (await supabase.auth.getUser()).data.user
-  await supabase.from("payments").insert({
+  const user = (await supabaseClient.auth.getUser()).data.user
+  await supabaseCliente.from("payments").insert({
     user_id: user.id,
     name: paymentName.value,
     amount: Number(paymentAmount.value),
@@ -337,7 +337,7 @@ async function addPayment() {
 }
 
 async function loadPayments() {
-  const { data } = await supabase.from("payments").select("*")
+  const { data } = await supabaseClient.from("payments").select("*")
   paymentsList.innerHTML = data.map(p =>
     `<div class="card">${p.name} — ${p.amount}</div>`
   ).join("")
@@ -347,7 +347,7 @@ async function loadPayments() {
    CHART
 ===================== */
 async function renderChart() {
-  const { data } = await supabase.from("expenses").select("amount, categories(name)")
+  const { data } = await supabaseClient.from("expenses").select("amount, categories(name)")
   const map = {}
   data.forEach(e => {
     const n = e.categories?.name || "Другое"

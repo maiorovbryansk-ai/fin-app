@@ -184,8 +184,36 @@ const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
    AUTH
 ===================== */
 async function login() {
-  const email = email.value
-  const password = password.value
+  const emailInput = document.getElementById("email")
+  const passwordInput = document.getElementById("password")
+
+  const email = emailInput.value.trim()
+  const password = passwordInput.value.trim()
+
+  if (!email || !password) {
+    alert("Введите email и пароль")
+    return
+  }
+
+  // пробуем войти
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  })
+
+  // если пользователя нет — регистрируем
+  if (error) {
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password
+    })
+
+    if (signUpError) {
+      alert(signUpError.message)
+    }
+  }
+}
+
 
   let res = await supabase.auth.signInWithPassword({ email, password })
   if (res.error) {

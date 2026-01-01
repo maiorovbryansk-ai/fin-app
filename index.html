@@ -218,7 +218,7 @@ async function login() {
 }
 
 
-  let res = await supabaseClient.auth.signInWithPassword({ email, password })
+  let res = await supabaseClient.auth.signInWithPassword({ email, password });
   if (res.error) {
     await supabaseClient.auth.signUp({ email, password })
   }

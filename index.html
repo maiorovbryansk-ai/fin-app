@@ -814,13 +814,7 @@
         checkbox.addEventListener('change', async ()=>{
           const newPaid = checkbox.checked;
           await dbUpdate('payments', p.id, { paid: newPaid });
-          if (newPaid && card){
-            await dbUpdate('cards', card.id, { balance: Number(card.balance || 0) - Number(p.amount || 0) });
-          } else if (!newPaid && card){
-            await dbUpdate('cards', card.id, { balance: Number(card.balance || 0) + Number(p.amount || 0) });
-          }
-          await loadDataFromSupabase(); renderAll();
-        });
+          
 
         row.querySelectorAll('button').forEach(btn=>{
           btn.addEventListener('click', async ()=>{
@@ -880,14 +874,7 @@
       const note = document.getElementById('expense-note').value.trim();
       if (!amount || !card_id) return alert('Укажи сумму и карту');
       // decrease card balance
-      const card = state.cards.find(c=>c.id===card_id);
-      if (card){
-        const newBal = Number(card.balance || 0) - amount;
-        if (newBal < 0 && !confirm('Баланс карты станет отрицательным. Продолжить?')) return;
-        await dbUpdate('cards', card.id, { balance: newBal });
-      }
       await dbInsert('expenses', { amount, category_id, card_id, note, created_at: new Date().toISOString() });
-      await loadDataFromSupabase(); renderAll();
       document.getElementById('expense-amount').value=''; document.getElementById('expense-note').value=''; alert('Расход сохранён');
     });
 
@@ -899,13 +886,7 @@
       const card_id = document.getElementById('quick-card').value || null;
       if (!amount || !card_id) return alert('Укажи сумму и карту');
       const card = state.cards.find(c=>c.id===card_id);
-      if (card){
-        const newBal = Number(card.balance || 0) - amount;
-        if (newBal < 0 && !confirm('Баланс карты станет отрицательным. Продолжить?')) return;
-        await dbUpdate('cards', card.id, { balance: newBal });
-      }
       await dbInsert('expenses', { amount, category_id, card_id, note: 'Быстрая операция', created_at: new Date().toISOString() });
-      await loadDataFromSupabase(); renderAll();
       document.getElementById('quick-amount').value='';
     });
 

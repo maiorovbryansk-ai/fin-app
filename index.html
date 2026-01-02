@@ -535,12 +535,15 @@
       });
     }
 
-    async function dbInsert(table, data){
-      if (!supabaseClient || !currentUser) throw new Error('No supabase or user');
-      const payload = { ...data, user_id: currentUser.id };
-      const { data: res, error } = await supabaseClient.from(table).insert([payload]).select().single();
-      if (error) { alert('Ошибка сохранения: ' + error.message); throw error; }
-      return res;
+   async function dbInsert(table, data){
+  const { data: res, error } = await supabaseClient
+    .from(table)
+    .insert([data])
+    .select()
+    .single();
+  if (error) throw error;
+  return res;
+}
     }
     async function dbUpdate(table, id, data){
       if (!supabaseClient || !currentUser) throw new Error('No supabase or user');

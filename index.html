@@ -807,10 +807,15 @@
         container.appendChild(row);
 
         const checkbox = row.querySelector('input[type="checkbox"]');
-        checkbox.addEventListener('change', async ()=>{
-          const newPaid = checkbox.checked;
-          await dbUpdate('payments', p.id, { paid: newPaid });
-          
+checkbox.addEventListener('change', async ()=>{
+  const newPaid = checkbox.checked;
+  await dbUpdate('payments', p.id, { paid: newPaid });
+  // если баланс карт обрабатывается триггерами на сервере — не трогаем баланс в клиенте,
+  // иначе можно тут корректировать card.balance вручную (но это приведёт к дублированию).
+  await loadDataFromSupabase();
+  renderAll();
+});
+
 
         row.querySelectorAll('button').forEach(btn=>{
           btn.addEventListener('click', async ()=>{

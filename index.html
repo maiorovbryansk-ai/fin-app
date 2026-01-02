@@ -789,7 +789,47 @@ function renderUserArea(){
     `;
     document.getElementById('btn-open-login').onclick = ()=>openAuth('login');
   }
+  
 }
+/* ===========================
+   renderAll (UI only)
+   =========================== */
+function renderAll(){
+  populateSelects();
+  renderSummary();
+  renderCardsList();
+  renderRecentExpenses();
+  renderStats();
+  renderExpensesList();
+  renderCategories();
+  renderPayments();
+  renderChart();
+  renderUserArea();
+}
+
+/* ===========================
+   Small UX improvements
+   =========================== */
+
+// keyboard shortcuts
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'N' || e.key === 'n') showTab('expenses');
+  if (e.key === 'C' || e.key === 'c') showTab('cards');
+  if (e.key === 'D' || e.key === 'd') showTab('dashboard');
+});
+
+// focus ring
+document.addEventListener('focusin', (e)=>{
+  if (e.target && e.target.matches('button,input,select,textarea')){
+    e.target.style.outline = '2px solid rgba(124,58,237,0.22)';
+  }
+});
+document.addEventListener('focusout', (e)=>{
+  if (e.target && e.target.matches('button,input,select,textarea')){
+    e.target.style.outline = 'none';
+  }
+});
+
 </script>
 <!-- END BLOCK 7 -->
 <!-- BLOCK 8: JavaScript — renderAll + bootstrapping -->
@@ -818,7 +858,16 @@ function renderAll(){
   renderPayments();
   renderChart();
 }
+/* ===========================
+   App bootstrap (Supabase)
+   =========================== */
+async function boot(){
+  await authService.init();     // получаем текущего пользователя
+  await dataService.loadAll();  // грузим данные из Supabase
+  renderAll();                  // ОДИН запуск UI
+}
 
+boot();
 boot();
 </script>
 </body>

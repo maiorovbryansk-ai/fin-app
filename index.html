@@ -486,22 +486,18 @@
     }
 
     // Listen auth changes (only if supabase client доступен)
-    if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.onAuthStateChange === 'function') {
-      supabaseClient.auth.onAuthStateChange((event, session) => {
-        currentUser = session?.user || null;
-        renderUserArea();
-        if (currentUser) {
-          loadDataFromSupabase().then(()=>{ renderAll(); subscribeToUpdates(); });
-        } else {
-          state = { cards: [], categories: [], expenses: [], payments: [] };
-          renderAll();
-        }
-      });
-    } else {
-      // fallback: no supabase — оставим приложение в гостевом режиме (UI работает, но данные пусты)
-      currentUser = null;
-      renderUserArea();
-    }
+    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+  currentUser = session?.user || null;
+
+  if (currentUser) {
+    await loadDataFromSupabase();
+    subscribeToUpdates();
+  } else {
+    state = { cards: [], categories: [], expenses: [], payments: [] };
+  }
+
+  renderAll();
+});
 
     // ===== DB helpers =====
     async function loadDataFromSupabase(){
@@ -980,23 +976,19 @@
 
     // Initial load: check session (safely)
     (async ()=>{
-      try {
-        if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.getSession === 'function'){
-          const { data } = await supabaseClient.auth.getSession();
-          currentUser = data?.session?.user || null;
-          if (currentUser) {
-            await loadDataFromSupabase();
-            subscribeToUpdates();
-          }
-        } else {
-          currentUser = null;
-        }
-      } catch(err){
-        console.warn('Supabase session check failed', err);
-        currentUser = null;
-      }
-      renderAll();
-    })();
+  if (!supabaseClient) return renderAll();
+
+  const { data } = await supabaseClient.auth.getSession();
+  currentUser = data?.session?.user || null;
+
+  if (currentUser) {
+    await loadDataFromSupabase();
+    subscribeToUpdates();
+  }
+
+  renderAll();
+})();
+
 
     // UX helpers
     document.addEventListener('keydown', (e)=>{ if (e.key === 'N' || e.key === 'n') showTab('expenses'); if (e.key === 'C' || e.key === 'c') showTab('cards'); if (e.key === 'D' || e.key === 'd') showTab('dashboard'); });

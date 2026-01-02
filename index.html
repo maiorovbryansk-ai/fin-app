@@ -1,4 +1,392 @@
-/**************************************************************************
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MoneyFlow — учёт личных финансов (с Supabase)</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Supabase JS Client (UMD build via jsDelivr — корректный Content-Type) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+
+  <!-- Favicon (data URI) — several rel types to reduce /favicon.ico 404 -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%237c3aed'/%3E%3Ctext x='50' y='58' font-size='50' text-anchor='middle' fill='white' font-family='Arial'%3EMF%3C/text%3E%3C/svg%3E">
+  <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%237c3aed'/%3E%3Ctext x='50' y='58' font-size='50' text-anchor='middle' fill='white' font-family='Arial'%3EMF%3C/text%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%237c3aed'/%3E%3C/text%3E%3C/svg%3E">
+
+  <style>
+    /* ===========================
+       Тёмная минималистичная тема
+       =========================== */
+    :root{
+      --bg: #0b0f14;
+      --panel: #0f1720;
+      --muted: #98a0aa;
+      --accent: linear-gradient(135deg,#7c3aed,#06b6d4);
+      --glass: rgba(255,255,255,0.03);
+      --glass-2: rgba(255,255,255,0.02);
+      --glass-3: rgba(255,255,255,0.04);
+      --card-shadow: 0 6px 18px rgba(2,6,23,0.6);
+      --radius: 14px;
+      --radius-sm: 10px;
+      --trans: 220ms cubic-bezier(.2,.9,.3,1);
+      --currency: "₽";
+    }
+
+    html,body{ height:100%; margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:
+      radial-gradient(1200px 600px at 10% 10%, rgba(124,58,237,0.06), transparent 6%),
+      radial-gradient(1200px 600px at 90% 90%, rgba(6,182,212,0.04), transparent 6%),
+      var(--bg);
+      color:#e6eef6; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
+
+    .app{ max-width:1100px; margin:32px auto; padding:28px; display:grid; grid-template-columns: 260px 1fr; gap:20px; align-items:start; }
+
+    /* Sidebar */
+    .sidebar{ background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:var(--radius); padding:16px; box-shadow: var(--card-shadow); min-height:520px; position:sticky; top:20px; }
+    .brand{ display:flex; gap:12px; align-items:center; margin-bottom:18px; }
+    .logo{ width:44px; height:44px; border-radius:10px; background:var(--accent); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(124,58,237,0.12); font-weight:700; }
+    .brand h1{ font-size:16px; margin:0; }
+    .brand p{ margin:0; color:var(--muted); font-size:12px; }
+
+    nav ul{ list-style:none; padding:0; margin:12px 0; display:flex; flex-direction:column; gap:8px; }
+    nav button{ display:flex; gap:12px; align-items:center; width:100%; background:transparent; border:0; color:inherit; padding:10px 12px; border-radius:10px; cursor:pointer; transition:all var(--trans); text-align:left; }
+    nav button:hover{ background:var(--glass-2); transform:translateY(-2px); }
+    nav button.active{ background:linear-gradient(90deg, rgba(124,58,237,0.12), rgba(6,182,212,0.04)); box-shadow:0 6px 18px rgba(2,6,23,0.6); }
+
+    .sidebar .section-title{ color:var(--muted); font-size:12px; margin:14px 2px 4px; }
+    .small{ font-size:12px; color:var(--muted); }
+
+    /* Main area */
+    .main{ min-height:520px; display:flex; flex-direction:column; gap:18px; }
+
+    .summary{ display:flex; gap:16px; align-items:center; }
+    .card{ background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:var(--radius); padding:18px; box-shadow: var(--card-shadow); }
+    .summary .total{ flex:1; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .quick-actions{ display:flex; gap:10px; }
+    .btn{ background: linear-gradient(90deg,#2b3141,#16181c); border:0; padding:8px 12px; border-radius:10px; cursor:pointer; color:#e6eef6; font-weight:600; box-shadow: 0 6px 18px rgba(2,6,23,0.35); transition: transform var(--trans), box-shadow var(--trans); }
+    .btn:active{ transform:translateY(1px); }
+
+    .grid{ display:grid; grid-template-columns: 380px 1fr; gap:16px; align-items:start; }
+
+    .chart-wrap{ padding:14px; border-radius:var(--radius-sm); background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); }
+    canvas{ display:block; max-width:100%; height:260px !important; }
+
+    .cards-list{ display:flex; flex-direction:column; gap:12px; margin-top:6px; }
+    .bank-card{ display:flex; justify-content:space-between; align-items:center; padding:12px; border-radius:12px; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); transition: transform var(--trans), box-shadow var(--trans); }
+    .bank-card:hover{ transform:translateY(-4px); box-shadow: 0 14px 30px rgba(2,6,23,0.6); }
+    .bank-card .meta{ display:flex; gap:12px; align-items:center; }
+    .chip{ width:44px; height:44px; border-radius:10px; display:grid; place-items:center; background:linear-gradient(135deg,#1f2937,#111827); font-weight:700; color:var(--muted); }
+    .small-muted{ color:var(--muted); font-size:12px; }
+
+    .list{ display:flex; flex-direction:column; gap:8px; }
+    .list-item{ display:flex; justify-content:space-between; align-items:center; padding:10px; border-radius:10px; background:var(--glass); transition:all var(--trans); }
+
+    .form{ display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+    .form-row{ display:flex; gap:8px; }
+    input[type="text"], input[type="number"], select, input[type="password"]{ background:transparent; border:1px solid rgba(255,255,255,0.06); padding:10px 12px; border-radius:10px; color:inherit; outline:none; flex:1; transition:border-color var(--trans); }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus, input[type="password"]:focus{ border-color:rgba(124,58,237,0.6); box-shadow:0 6px 18px rgba(124,58,237,0.06); }
+
+    .payments{ display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+    .payment-row{ display:flex; gap:12px; align-items:center; justify-content:space-between; padding:10px; border-radius:10px; background:var(--glass-3); }
+
+    .pill{ padding:6px 8px; border-radius:999px; background:rgba(255,255,255,0.03); font-size:13px; color:var(--muted); }
+
+    .footer{ color:var(--muted); font-size:12px; margin-top:8px; }
+    .muted{ color:var(--muted); font-size:13px; }
+
+    /* Auth modal */
+    .overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:50; }
+    .modal{ width:380px; border-radius:12px; padding:18px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); box-shadow: 0 20px 60px rgba(2,6,23,0.7); }
+    .tabs{ display:flex; gap:8px; margin-bottom:12px; }
+    .tabs button{ flex:1; padding:8px; border-radius:8px; border:0; background:transparent; color:var(--muted); cursor:pointer; }
+    .tabs button.active{ background:rgba(124,58,237,0.12); color:#eaf2ff; }
+
+    /* Responsive */
+    @media (max-width:980px){ .app{ grid-template-columns: 1fr; padding:14px; } .summary{ flex-direction:column; } .grid{ grid-template-columns: 1fr; } .sidebar{ position:relative; top:auto; min-height:auto; } }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" aria-label="Навигация">
+      <div class="brand">
+        <div class="logo">MF</div>
+        <div>
+          <h1>MoneyFlow</h1>
+          <p>Учёт личных финансов — Supabase</p>
+        </div>
+      </div>
+
+      <div id="user-area" style="margin-bottom:12px;"></div>
+
+      <nav aria-label="Меню">
+        <ul>
+          <li><button id="tab-dashboard" class="active" data-tab="dashboard">🏠 Дэшборд</button></li>
+          <li><button id="tab-cards" data-tab="cards">💳 Карты</button></li>
+          <li><button id="tab-expenses" data-tab="expenses">🧾 Расходы</button></li>
+          <li><button id="tab-categories" data-tab="categories">🏷️ Категории</button></li>
+          <li><button id="tab-payments" data-tab="payments">📅 Обязательные выплаты</button></li>
+        </ul>
+      </nav>
+
+      <div class="section-title">Быстрые действия</div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn" id="quick-add-card">Добавить карту</button>
+        <button class="btn" id="quick-add-expense">Добавить расход</button>
+      </div>
+
+      <div style="margin-top:18px;">
+        <div class="small">Последняя синхронизация: <span class="small-muted" id="last-sync">—</span></div>
+        <div class="footer">Данные хранятся на сервере Supabase</div>
+
+        <!-- Diagnostics UI -->
+        <div style="margin-top:10px;">
+          <button id="diag-supabase" class="btn" style="padding:6px 8px;font-size:13px;">Диагностика Supabase</button>
+          <pre id="diag-log" style="max-height:160px;overflow:auto;margin-top:8px;color:#cfd8e3;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;font-size:12px;">Нажмите "Диагностика Supabase" чтобы начать.</pre>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <!-- Top summary -->
+      <div class="summary">
+        <div class="card total" style="min-width:320px;">
+          <div class="left">
+            <h2>Общий баланс</h2>
+            <p id="total-balance">—</p>
+            <div class="muted" id="accounts-count">— карт</div>
+          </div>
+          <div class="quick-actions">
+            <button class="btn" id="export-data" title="Экспортировать данные">Экспорт</button>
+            <button class="btn" id="import-data" title="Импортировать JSON">Импорт</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px; align-items:center;">
+          <div class="card" style="min-width:220px;">
+            <div class="muted">Последние расходы</div>
+            <div id="recent-list" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content area (tabs) -->
+      <section id="content-area">
+        <!-- DASHBOARD -->
+        <div id="tab-dashboard-content" class="card" role="region" tabindex="-1">
+          <h3 style="margin:0 0 12px 0;">Дашборд</h3>
+          <div class="grid">
+            <div>
+              <div class="chart-wrap card">
+                <h4 style="margin:0 0 10px 0;">Расходы по категориям</h4>
+                <canvas id="expensesChart" aria-label="Круговая диаграмма расходов"></canvas>
+                <div class="muted" style="margin-top:8px;">Диаграмма показывает суммарные расходы по категориям.</div>
+              </div>
+
+              <div style="margin-top:12px;" class="card">
+                <h4 style="margin:0 0 8px 0;">Карты</h4>
+                <div class="cards-list" id="cards-list"></div>
+                <div style="margin-top:10px; display:flex; gap:8px;">
+                  <button class="btn" id="show-cards-tab">Управлять картами</button>
+                  <button class="btn" id="add-sample-data">Добавить demo-данные</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="card">
+                <h4 style="margin:0 0 8px 0;">Статистика</h4>
+                <div class="list" id="stats-list"></div>
+              </div>
+
+              <div class="card" style="margin-top:12px;">
+                <h4 style="margin:0 0 8px 0;">Новые операции</h4>
+                <div class="form">
+                  <input type="number" id="quick-amount" placeholder="Сумма" />
+                  <select id="quick-category"></select>
+                  <select id="quick-card"></select>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn" id="quick-add-expense-2">Добавить расход</button>
+                    <button class="btn" id="open-expenses-tab">Открыть расходы</button>
+                  </div>
+                  <div class="muted">Быстро добавь расход — баланс карты уменьшится автоматически.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARDS -->
+        <div id="tab-cards-content" class="card" role="region" style="display:none;" tabindex="-1">
+          <h3 style="margin:0 0 12px 0;">Карты</h3>
+          <div class="grid" style="grid-template-columns:1fr 360px;">
+            <div>
+              <div class="list" id="cards-manage-list"></div>
+            </div>
+            <div>
+              <div class="card">
+                <h4 style="margin:0 0 8px 0;">Добавить карту</h4>
+                <form id="form-add-card" class="form" onsubmit="return false;">
+                  <input id="card-name" type="text" placeholder="Название (напр. Основная)" required />
+                  <input id="card-last4" type="text" placeholder="Номер / последние 4 цифры" maxlength="20" />
+                  <input id="card-balance" type="number" placeholder="Баланс (числом)" step="0.01" required />
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn" id="save-card">Сохранить</button>
+                  </div>
+                  <div class="muted">Данные хранятся на сервере Supabase.</div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EXPENSES -->
+        <div id="tab-expenses-content" class="card" role="region" style="display:none;" tabindex="-1">
+          <h3 style="margin:0 0 12px 0;">Расходы</h3>
+          <div style="display:flex; gap:16px;">
+            <div style="flex:1;">
+              <div class="card">
+                <h4 style="margin:0 0 8px 0;">Добавить расход</h4>
+                <form id="form-add-expense" class="form" onsubmit="return false;">
+                  <input id="expense-amount" type="number" step="0.01" placeholder="Сумма" required />
+                  <select id="expense-category" required></select>
+                  <select id="expense-card" required></select>
+                  <input id="expense-note" type="text" placeholder="Описание (необязательно)" />
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn" id="save-expense">Добавить</button>
+                    <button class="btn" id="clear-expense">Очистить</button>
+                  </div>
+                  <div class="muted">При добавлении — баланс выбранной карты уменьшится.</div>
+                </form>
+              </div>
+
+              <div class="card" style="margin-top:12px;">
+                <h4 style="margin:0 0 8px 0;">История расходов</h4>
+                <div id="expenses-list" class="list"></div>
+              </div>
+            </div>
+
+            <div style="width:360px;">
+              <div class="card">
+                <h4 style="margin:0 0 8px 0;">Фильтры</h4>
+                <div class="form">
+                  <select id="filter-card">
+                    <option value="">По всем картам</option>
+                  </select>
+                  <select id="filter-category">
+                    <option value="">По всем категориям</option>
+                  </select>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn" id="apply-filters">Применить</button>
+                    <button class="btn" id="reset-filters">Сброс</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CATEGORIES -->
+        <div id="tab-categories-content" class="card" role="region" style="display:none;" tabindex="-1">
+          <h3 style="margin:0 0 12px 0;">Категории</h3>
+          <div style="display:flex; gap:16px;">
+            <div style="flex:1;">
+              <div class="card">
+                <h4 style="margin:0 0 8px 0;">Список категорий</h4>
+                <div id="categories-list" class="list"></div>
+              </div>
+            </div>
+            <div style="width:360px;">
+              <div class="card">
+                <h4 style="margin:0 0 8px 0;">Добавить категорию</h4>
+                <form id="form-add-category" class="form" onsubmit="return false;">
+                  <input id="category-name" type="text" placeholder="Название категории" required />
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn" id="save-category">Добавить</button>
+                  </div>
+                  <div class="muted">Категории используются в расходах и графиках.</div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAYMENTS -->
+        <div id="tab-payments-content" class="card" role="region" style="display:none;" tabindex="-1">
+          <h3 style="margin:0 0 12px 0;">Обязательные ежемесячные платежи</h3>
+          <div style="display:flex; gap:16px;">
+            <div style="flex:1;">
+              <div class="payments" id="payments-list"></div>
+            </div>
+            <div style="width:360px;">
+              <div class="card">
+                <h4 style="margin:0 0 8px 0;">Добавить платёж</h4>
+                <form id="form-add-payment" class="form" onsubmit="return false;">
+                  <input id="payment-name" type="text" placeholder="Название (напр. Интернет)" required />
+                  <input id="payment-amount" type="number" step="0.01" placeholder="Сумма" required />
+                  <select id="payment-card" required></select>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn" id="save-payment">Добавить</button>
+                    <button class="btn" id="clear-payment">Очистить</button>
+                  </div>
+                  <div class="muted">Отметь чекбокс, чтобы списать платёж с выбранной карты.</div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div class="overlay" id="auth-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 id="auth-title" style="margin:0;">Аутентификация</h3>
+        <button class="btn" id="close-auth">Закрыть</button>
+      </div>
+
+      <div class="tabs" style="margin-top:12px;">
+        <button id="tab-auth-login" class="active">Вход</button>
+        <button id="tab-auth-signup">Регистрация</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <div id="auth-login">
+        <form id="form-login" class="form" onsubmit="return false;">
+          <input id="login-email" type="email" placeholder="Email" required />
+          <input id="login-password" type="password" placeholder="Пароль" required />
+          <div style="display:flex;gap:8px;">
+            <button class="btn" id="btn-login">Войти</button>
+            <button class="btn" id="btn-login-guest" title="Войти как гость">Гость (demo)</button>
+          </div>
+          <div id="auth-warning" class="muted" style="margin-top:8px;">Используется аутентификация Supabase.</div>
+        </form>
+      </div>
+
+      <!-- SIGNUP FORM -->
+      <div id="auth-signup" style="display:none;">
+        <form id="form-signup" class="form" onsubmit="return false;">
+          <input id="signup-email" type="email" placeholder="Email" required />
+          <input id="signup-password" type="password" placeholder="Пароль (минимум 6 символов)" required />
+          <input id="signup-password2" type="password" placeholder="Повторите пароль" required />
+          <div style="display:flex;gap:8px;">
+            <button class="btn" id="btn-signup">Создать аккаунт</button>
+            <button class="btn" id="btn-cancel-signup">Отмена</button>
+          </div>
+          <div class="muted">Аккаунт будет создан на сервере Supabase.</div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**************************************************************************
  * Supabase integration — replaces local accounts/localStorage
  **************************************************************************/
 
@@ -1367,3 +1755,6 @@ window.addEventListener('unhandledrejection', (ev) => {
     diagnoseSupabase(); 
   });
 })();
+  </script>
+</body>
+</html>

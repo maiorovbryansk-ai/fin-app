@@ -808,6 +808,105 @@ function renderAll(){
 }
 
 /* ===========================
+   Demo data
+   =========================== */
+const demo = {
+  cards: [],
+  categories: [],
+  expenses: [],
+  payments: []
+};
+
+/* ===========================
+   Utils
+   =========================== */
+function escapeHtml(text){
+  if (!text) return '';
+  return String(text).replace(/[&<>"']/g, s =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])
+  );
+}
+
+function randomColor(){
+  const h = Math.floor(Math.random() * 360);
+  return `hsl(${h} 70% 45%)`;
+}
+
+const CURRENCY_SYMBOL = '₽';
+
+function fmt(v){
+  if (typeof v !== 'number') v = Number(v) || 0;
+  return v.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }) + ' ' + CURRENCY_SYMBOL;
+}
+
+/* ===========================
+   Render helpers
+   =========================== */
+function computeTotalBalance(){
+  return state.cards.reduce((s,c)=>s + Number(c.balance||0), 0);
+}
+
+function renderSummary(){
+  document.getElementById('total-balance').textContent = fmt(computeTotalBalance());
+  document.getElementById('accounts-count').textContent =
+    `${state.cards.length} карт`;
+}
+
+function renderCardsList(){
+  const container = document.getElementById('cards-list');
+  container.innerHTML = '';
+  state.cards.forEach(c=>{
+    const el = document.createElement('div');
+    el.className = 'bank-card';
+    el.innerHTML = `
+      <div class="meta">
+        <div class="chip">${escapeHtml(c.name.slice(0,2))}</div>
+        <div>
+          <div>${escapeHtml(c.name)}</div>
+          <div class="small-muted">•••• ${escapeHtml(c.last4||'')}</div>
+        </div>
+      </div>
+      <div>${fmt(Number(c.balance||0))}</div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+function renderRecentExpenses(){
+  const container = document.getElementById('recent-list');
+  container.innerHTML = '';
+  state.expenses.slice(-5).reverse().forEach(e=>{
+    const el = document.createElement('div');
+    el.textContent = `${fmt(e.amount)} — ${escapeHtml(e.note||'Расход')}`;
+    container.appendChild(el);
+  });
+}
+
+function renderStats(){}
+
+function renderExpensesList(){
+  const el = document.getElementById('expenses-list');
+  el.innerHTML = '';
+}
+
+function renderCategories(){
+  const el = document.getElementById('categories-list');
+  el.innerHTML = '';
+}
+
+function renderPayments(){
+  const el = document.getElementById('payments-list');
+  el.innerHTML = '';
+}
+
+function renderChart(){}
+
+
+
+/* ===========================
    Small UX improvements
    =========================== */
 
@@ -829,6 +928,18 @@ document.addEventListener('focusout', (e)=>{
     e.target.style.outline = 'none';
   }
 });
+function renderAll(){
+  populateSelects();
+  renderSummary();
+  renderCardsList();
+  renderRecentExpenses();
+  renderStats();
+  renderExpensesList();
+  renderCategories();
+  renderPayments();
+  renderChart();
+  renderUserArea();
+}
 
 </script>
 <!-- END BLOCK 7 -->
@@ -867,7 +978,7 @@ async function boot(){
   renderAll();                  // ОДИН запуск UI
 }
 
-boot();
+
 boot();
 </script>
 </body>

@@ -402,7 +402,7 @@
 const SUPABASE_URL = 'https://tzsqgwupguttgsuhbknb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO';
 
-const supabase = window.supabase.createClient(
+const SB = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
@@ -424,12 +424,12 @@ let state = {
    =========================== */
 const authService = {
   async init() {
-    const { data } = await supabase.auth.getUser();
+    const { data } = await SB.auth.getUser();
     currentUser = data?.user ?? null;
   },
 
   async login(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await SB.auth.signInWithPassword({
       email,
       password
     });
@@ -438,7 +438,7 @@ const authService = {
   },
 
   async signup(email, password) {
-    const { error } = await supabase.auth.signUp({
+    const { error } = await SB.auth.signUp({
       email,
       password
     });
@@ -447,7 +447,7 @@ const authService = {
   },
 
   async logout() {
-    await supabase.auth.signOut();
+    await SB.auth.signOut();
     currentUser = null;
   },
 
@@ -480,10 +480,10 @@ const dataService = {
     const userId = authService.userId();
 
     const [cards, categories, expenses, payments] = await Promise.all([
-      supabase.from('cards').select('*').eq('user_id', userId),
-      supabase.from('categories').select('*').eq('user_id', userId),
-      supabase.from('expenses').select('*').eq('user_id', userId),
-      supabase.from('payments').select('*').eq('user_id', userId)
+      SB.from('cards').select('*').eq('user_id', userId),
+      SB.from('categories').select('*').eq('user_id', userId),
+      SB.from('expenses').select('*').eq('user_id', userId),
+      SB.from('payments').select('*').eq('user_id', userId)
     ]);
 
     if (cards.error) throw cards.error;
@@ -500,48 +500,48 @@ const dataService = {
   /* ---- Cards ---- */
   async saveCard(card) {
     card.user_id = authService.userId();
-    const { error } = await supabase.from('cards').upsert(card);
+    const { error } = await SB.from('cards').upsert(card);
     if (error) throw error;
   },
 
   async deleteCard(id) {
-    const { error } = await supabase.from('cards').delete().eq('id', id);
+    const { error } = await SB.from('cards').delete().eq('id', id);
     if (error) throw error;
   },
 
   /* ---- Categories ---- */
   async saveCategory(cat) {
     cat.user_id = authService.userId();
-    const { error } = await supabase.from('categories').upsert(cat);
+    const { error } = await SB.from('categories').upsert(cat);
     if (error) throw error;
   },
 
   async deleteCategory(id) {
-    const { error } = await supabase.from('categories').delete().eq('id', id);
+    const { error } = await SB.from('categories').delete().eq('id', id);
     if (error) throw error;
   },
 
   /* ---- Expenses ---- */
   async saveExpense(exp) {
     exp.user_id = authService.userId();
-    const { error } = await supabase.from('expenses').upsert(exp);
+    const { error } = await SB.from('expenses').upsert(exp);
     if (error) throw error;
   },
 
   async deleteExpense(id) {
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    const { error } = await SB.from('expenses').delete().eq('id', id);
     if (error) throw error;
   },
 
   /* ---- Payments ---- */
   async savePayment(p) {
     p.user_id = authService.userId();
-    const { error } = await supabase.from('payments').upsert(p);
+    const { error } = await SB.from('payments').upsert(p);
     if (error) throw error;
   },
 
   async deletePayment(id) {
-    const { error } = await supabase.from('payments').delete().eq('id', id);
+    const { error } = await SB.from('payments').delete().eq('id', id);
     if (error) throw error;
   }
 };

@@ -1,13 +1,14 @@
-<!-- BLOCK 1: <!doctype html> + <head> -->
 <!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MoneyFlow — учёт личных финансов (с аккаунтом)</title>
+  <title>MoneyFlow — учёт личных финансов (с Supabase)</title>
 
-  <!-- Chart.js через CDN -->
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/dist/main.min.js"></script>
 
   <style>
     /* ===========================
@@ -98,16 +99,9 @@
     .tabs button.active{ background:rgba(124,58,237,0.12); color:#eaf2ff; }
 
     /* Responsive */
-    @media (max-width:980px){
-      .app{ grid-template-columns: 1fr; padding:14px; }
-      .summary{ flex-direction:column; }
-      .grid{ grid-template-columns: 1fr; }
-      .sidebar{ position:relative; top:auto; min-height:auto; }
-    }
+    @media (max-width:980px){ .app{ grid-template-columns: 1fr; padding:14px; } .summary{ flex-direction:column; } .grid{ grid-template-columns: 1fr; } .sidebar{ position:relative; top:auto; min-height:auto; } }
   </style>
 </head>
-<!-- END BLOCK 1 -->
-<!-- BLOCK 2: <body> до конца sidebar -->
 <body>
   <div class="app" id="app">
     <!-- SIDEBAR -->
@@ -116,14 +110,11 @@
         <div class="logo">MF</div>
         <div>
           <h1>MoneyFlow</h1>
-          <p>Учёт личных финансов — тёмная тема</p>
+          <p>Учёт личных финансов — Supabase</p>
         </div>
       </div>
 
-      <!-- USER AREA -->
-      <div id="user-area" style="margin-bottom:12px;">
-        <!-- Заполнится через JS: статус пользователя / кнопки -->
-      </div>
+      <div id="user-area" style="margin-bottom:12px;"></div>
 
       <nav aria-label="Меню">
         <ul>
@@ -142,17 +133,11 @@
       </div>
 
       <div style="margin-top:18px;">
-        <div class="small">
-          Последняя синхронизация:
-          <span class="small-muted" id="last-sync">—</span>
-        </div>
-        <div class="footer">
-          Supabase · Postgres · RLS
-        </div>
+        <div class="small">Последняя синхронизация: <span class="small-muted" id="last-sync">—</span></div>
+        <div class="footer">Данные хранятся на сервере Supabase</div>
       </div>
     </aside>
-<!-- END BLOCK 2 -->
-<!-- BLOCK 3: main layout + tabs -->
+
     <!-- MAIN -->
     <main class="main">
       <!-- Top summary -->
@@ -186,10 +171,8 @@
             <div>
               <div class="chart-wrap card">
                 <h4 style="margin:0 0 10px 0;">Расходы по категориям</h4>
-                <canvas id="expensesChart"></canvas>
-                <div class="muted" style="margin-top:8px;">
-                  Диаграмма показывает суммарные расходы по категориям.
-                </div>
+                <canvas id="expensesChart" aria-label="Круговая диаграмма расходов"></canvas>
+                <div class="muted" style="margin-top:8px;">Диаграмма показывает суммарные расходы по категориям.</div>
               </div>
 
               <div style="margin-top:12px;" class="card">
@@ -218,9 +201,7 @@
                     <button class="btn" id="quick-add-expense-2">Добавить расход</button>
                     <button class="btn" id="open-expenses-tab">Открыть расходы</button>
                   </div>
-                  <div class="muted">
-                    Быстро добавь расход — баланс карты уменьшится автоматически.
-                  </div>
+                  <div class="muted">Быстро добавь расход — баланс карты уменьшится автоматически.</div>
                 </div>
               </div>
             </div>
@@ -238,14 +219,13 @@
               <div class="card">
                 <h4 style="margin:0 0 8px 0;">Добавить карту</h4>
                 <form id="form-add-card" class="form" onsubmit="return false;">
-                  <input id="card-name" type="text" placeholder="Название" required />
-                  <input id="card-last4" type="text" placeholder="Последние 4 цифры" />
-                  <input id="card-balance" type="number" placeholder="Баланс" step="0.01" required />
+                  <input id="card-name" type="text" placeholder="Название (напр. Основная)" required />
+                  <input id="card-last4" type="text" placeholder="Номер / последние 4 цифры" maxlength="20" />
+                  <input id="card-balance" type="number" placeholder="Баланс (числом)" step="0.01" required />
                   <div style="display:flex; gap:8px;">
                     <button class="btn" id="save-card">Сохранить</button>
-                    <button class="btn" id="reset-cards">Сбросить demo</button>
                   </div>
-                  <div class="muted">Данные хранятся в Supabase</div>
+                  <div class="muted">Данные хранятся на сервере Supabase.</div>
                 </form>
               </div>
             </div>
@@ -263,11 +243,12 @@
                   <input id="expense-amount" type="number" step="0.01" placeholder="Сумма" required />
                   <select id="expense-category" required></select>
                   <select id="expense-card" required></select>
-                  <input id="expense-note" type="text" placeholder="Описание" />
+                  <input id="expense-note" type="text" placeholder="Описание (необязательно)" />
                   <div style="display:flex; gap:8px;">
                     <button class="btn" id="save-expense">Добавить</button>
                     <button class="btn" id="clear-expense">Очистить</button>
                   </div>
+                  <div class="muted">При добавлении — баланс выбранной карты уменьшится.</div>
                 </form>
               </div>
 
@@ -281,8 +262,12 @@
               <div class="card">
                 <h4 style="margin:0 0 8px 0;">Фильтры</h4>
                 <div class="form">
-                  <select id="filter-card"></select>
-                  <select id="filter-category"></select>
+                  <select id="filter-card">
+                    <option value="">По всем картам</option>
+                  </select>
+                  <select id="filter-category">
+                    <option value="">По всем категориям</option>
+                  </select>
                   <div style="display:flex; gap:8px;">
                     <button class="btn" id="apply-filters">Применить</button>
                     <button class="btn" id="reset-filters">Сброс</button>
@@ -310,8 +295,8 @@
                   <input id="category-name" type="text" placeholder="Название категории" required />
                   <div style="display:flex; gap:8px;">
                     <button class="btn" id="save-category">Добавить</button>
-                    <button class="btn" id="reset-categories">Сброс</button>
                   </div>
+                  <div class="muted">Категории используются в расходах и графиках.</div>
                 </form>
               </div>
             </div>
@@ -320,7 +305,7 @@
 
         <!-- PAYMENTS -->
         <div id="tab-payments-content" class="card" role="region" style="display:none;" tabindex="-1">
-          <h3 style="margin:0 0 12px 0;">Обязательные платежи</h3>
+          <h3 style="margin:0 0 12px 0;">Обязательные ежемесячные платежи</h3>
           <div style="display:flex; gap:16px;">
             <div style="flex:1;">
               <div class="payments" id="payments-list"></div>
@@ -329,13 +314,14 @@
               <div class="card">
                 <h4 style="margin:0 0 8px 0;">Добавить платёж</h4>
                 <form id="form-add-payment" class="form" onsubmit="return false;">
-                  <input id="payment-name" type="text" placeholder="Название" required />
+                  <input id="payment-name" type="text" placeholder="Название (напр. Интернет)" required />
                   <input id="payment-amount" type="number" step="0.01" placeholder="Сумма" required />
                   <select id="payment-card" required></select>
                   <div style="display:flex; gap:8px;">
                     <button class="btn" id="save-payment">Добавить</button>
                     <button class="btn" id="clear-payment">Очистить</button>
                   </div>
+                  <div class="muted">Отметь чекбокс, чтобы списать платёж с выбранной карты.</div>
                 </form>
               </div>
             </div>
@@ -345,8 +331,7 @@
       </section>
     </main>
   </div>
-<!-- END BLOCK 3 -->
-<!-- BLOCK 4: auth modal -->
+
   <!-- AUTH MODAL -->
   <div class="overlay" id="auth-overlay" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
@@ -360,206 +345,450 @@
         <button id="tab-auth-signup">Регистрация</button>
       </div>
 
-      <!-- LOGIN -->
+      <!-- LOGIN FORM -->
       <div id="auth-login">
         <form id="form-login" class="form" onsubmit="return false;">
           <input id="login-email" type="email" placeholder="Email" required />
           <input id="login-password" type="password" placeholder="Пароль" required />
           <div style="display:flex;gap:8px;">
             <button class="btn" id="btn-login">Войти</button>
-            <button class="btn" id="btn-login-guest">Гость (demo)</button>
           </div>
-          <div class="muted">
-            Аутентификация через Supabase Auth (email + password)
-          </div>
+          <div class="muted">Используется аутентификация Supabase.</div>
         </form>
       </div>
 
-      <!-- SIGNUP -->
+      <!-- SIGNUP FORM -->
       <div id="auth-signup" style="display:none;">
         <form id="form-signup" class="form" onsubmit="return false;">
           <input id="signup-email" type="email" placeholder="Email" required />
-          <input id="signup-password" type="password" placeholder="Пароль" required />
+          <input id="signup-password" type="password" placeholder="Пароль (минимум 6 символов)" required />
           <input id="signup-password2" type="password" placeholder="Повторите пароль" required />
           <div style="display:flex;gap:8px;">
             <button class="btn" id="btn-signup">Создать аккаунт</button>
             <button class="btn" id="btn-cancel-signup">Отмена</button>
           </div>
-          <div class="muted">
-            Аккаунт создаётся в Supabase Auth
-          </div>
+          <div class="muted">Аккаунт будет создан на сервере Supabase.</div>
         </form>
       </div>
     </div>
   </div>
-<!-- END BLOCK 4 -->
-<!-- BLOCK 5: JavaScript — Supabase init + authService -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-/* ===========================
-   Supabase init
-   =========================== */
-const SUPABASE_URL = 'https://tzsqgwupguttgsuhbknb.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO';
 
-const SB = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
+  <script>
+    /**************************************************************************
+     * Supabase integration — replaces local accounts/localStorage
+     **************************************************************************/
 
+    // ===== CONFIG =====
+    // Замените эти значения на свои
+    const SUPABASE_URL = 'https://tzsqgwupguttgsuhbknb.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO';
 
-/* ===========================
-   App state
-   =========================== */
-let currentUser = null; // supabase user or null (guest)
-let state = {
-  cards: [],
-  categories: [],
-  expenses: [],
-  payments: []
-};
+    const { createClient } = window.supabase;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ===========================
-   Auth service
-   =========================== */
-const authService = {
-  async init() {
-    const { data } = await SB.auth.getUser();
-    currentUser = data?.user ?? null;
-  },
+    // ===== State/UI =====
+    let currentUser = null; // Supabase user object or null
+    let state = { cards: [], categories: [], expenses: [], payments: [] };
+    let subscriptions = [];
 
-  async login(email, password) {
-    const { error } = await SB.auth.signInWithPassword({
-      email,
-      password
-    });
-    if (error) throw error;
-    await this.init();
-  },
+    // Utils
+    function uid(prefix = 'id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+    function escapeHtml(text){ if (!text) return ''; return String(text).replace(/[&<>"']/g, (s) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+    const CURRENCY_SYMBOL = '₽';
+    function fmt(v){ if (typeof v !== 'number') v = Number(v) || 0; return v.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + CURRENCY_SYMBOL; }
+    function randomColor(){ const h = Math.floor(Math.random()*360); return `hsl(${h} 70% 45%)`; }
 
-  async signup(email, password) {
-    const { error } = await SB.auth.signUp({
-      email,
-      password
-    });
-    if (error) throw error;
-    await this.init();
-  },
+    // Demo dataset for quick population
+    const demo = {
+      cards: [
+        { name: 'Основная', last4: '1234', balance: 250000, color: '#7c3aed' },
+        { name: 'Сбережения', last4: '9876', balance: 1000000, color: '#06b6d4' }
+      ],
+      categories: [
+        { name: 'Еда' },
+        { name: 'Транспорт' },
+        { name: 'Развлечения' },
+        { name: 'Коммуналка' }
+      ],
+      expenses: [],
+      payments: []
+    };
 
-  async logout() {
-    await SB.auth.signOut();
-    currentUser = null;
-  },
-
-  isGuest() {
-    return !currentUser;
-  },
-
-  userId() {
-    return currentUser?.id ?? null;
-  }
-};
-</script>
-<!-- END BLOCK 5 -->
-<!-- BLOCK 6: JavaScript — dataService (Supabase CRUD) -->
-<script>
-/* ===========================
-   dataService
-   =========================== */
-const dataService = {
-  async loadAll() {
-    if (!currentUser) {
-      // guest / demo
-      state.cards = [];
-      state.categories = [];
-      state.expenses = [];
-      state.payments = [];
-      return;
+    // ===== AUTH =====
+    async function signup(){
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const password2 = document.getElementById('signup-password2').value;
+      if (!email || !password) return alert('Заполни все поля');
+      if (password !== password2) return alert('Пароли не совпадают');
+      if (password.length < 6) return alert('Пароль должен быть минимум 6 символов');
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) return alert('Ошибка регистрации: ' + error.message);
+      alert('Регистрация успешна. Проверьте почту для подтверждения (если включено).');
+      closeAuthModal();
     }
 
-    const userId = authService.userId();
+    async function login(){
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) return alert('Заполни все поля');
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return alert('Ошибка входа: ' + error.message);
+      closeAuthModal();
+    }
 
-    const [cards, categories, expenses, payments] = await Promise.all([
-      SB.from('cards').select('*').eq('user_id', userId),
-      SB.from('categories').select('*').eq('user_id', userId),
-      SB.from('expenses').select('*').eq('user_id', userId),
-      SB.from('payments').select('*').eq('user_id', userId)
-    ]);
+    async function logout(){
+      if (!confirm('Выйти из аккаунта?')) return;
+      const { error } = await supabase.auth.signOut();
+      if (error) alert('Ошибка выхода: ' + error.message);
+    }
 
-    if (cards.error) throw cards.error;
-    if (categories.error) throw categories.error;
-    if (expenses.error) throw expenses.error;
-    if (payments.error) throw payments.error;
+    // Listen auth changes
+    supabase.auth.onAuthStateChange((event, session) => {
+      currentUser = session?.user || null;
+      renderUserArea();
+      if (currentUser) {
+        loadDataFromSupabase().then(()=>{ renderAll(); subscribeToUpdates(); });
+      } else {
+        // guest: clear state (or keep empty UI)
+        state = { cards: [], categories: [], expenses: [], payments: [] };
+        renderAll();
+      }
+    });
 
-    state.cards = cards.data || [];
-    state.categories = categories.data || [];
-    state.expenses = expenses.data || [];
-    state.payments = payments.data || [];
-  },
+    // ===== DB helpers =====
+    async function loadDataFromSupabase(){
+      if (!currentUser) return;
+      try {
+        const userId = currentUser.id;
+        const [cardsRes, categoriesRes, expensesRes, paymentsRes] = await Promise.all([
+          supabase.from('cards').select('*').eq('user_id', userId),
+          supabase.from('categories').select('*').eq('user_id', userId),
+          supabase.from('expenses').select('*').eq('user_id', userId),
+          supabase.from('payments').select('*').eq('user_id', userId)
+        ]);
+        state.cards = (cardsRes.data || []).map(r => ({ ...r }));
+        state.categories = (categoriesRes.data || []).map(r => ({ ...r }));
+        state.expenses = (expensesRes.data || []).map(r => ({ ...r }));
+        state.payments = (paymentsRes.data || []).map(r => ({ ...r }));
+        document.getElementById('last-sync').textContent = new Date().toLocaleString();
+      } catch (e) {
+        console.error('load error', e);
+      }
+    }
 
-  /* ---- Cards ---- */
-  async saveCard(card) {
-    card.user_id = authService.userId();
-    const { error } = await SB.from('cards').upsert(card);
-    if (error) throw error;
-  },
+    function subscribeToUpdates(){
+      if (!currentUser) return;
+      subscriptions.forEach(ch => supabase.removeChannel(ch));
+      subscriptions = [];
+      ['cards','categories','expenses','payments'].forEach(table => {
+        const ch = supabase
+          .channel(`${table}-changes`)
+          .on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
+            loadDataFromSupabase().then(()=> renderAll());
+          })
+          .subscribe();
+        subscriptions.push(ch);
+      });
+    }
 
-  async deleteCard(id) {
-    const { error } = await SB.from('cards').delete().eq('id', id);
-    if (error) throw error;
-  },
+    async function dbInsert(table, data){
+      const payload = { ...data, user_id: currentUser.id };
+      const { data: res, error } = await supabase.from(table).insert([payload]).select().single();
+      if (error) { alert('Ошибка сохранения: ' + error.message); throw error; }
+      return res;
+    }
+    async function dbUpdate(table, id, data){
+      const { error } = await supabase.from(table).update(data).eq('id', id).eq('user_id', currentUser.id);
+      if (error) { alert('Ошибка обновления: ' + error.message); throw error; }
+    }
+    async function dbDelete(table, id){
+      const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', currentUser.id);
+      if (error) { alert('Ошибка удаления: ' + error.message); throw error; }
+    }
 
-  /* ---- Categories ---- */
-  async saveCategory(cat) {
-    cat.user_id = authService.userId();
-    const { error } = await SB.from('categories').upsert(cat);
-    if (error) throw error;
-  },
+    // ===== AUTH MODAL UI =====
+    const authOverlay = document.getElementById('auth-overlay');
+    function openAuthModal(defaultTab = 'login'){
+      authOverlay.style.display = 'flex';
+      authOverlay.setAttribute('aria-hidden','false');
+      const loginTab = document.getElementById('tab-auth-login');
+      const signupTab = document.getElementById('tab-auth-signup');
+      const loginPane = document.getElementById('auth-login');
+      const signupPane = document.getElementById('auth-signup');
+      if (defaultTab === 'signup'){
+        loginTab.classList.remove('active'); signupTab.classList.add('active');
+        loginPane.style.display='none'; signupPane.style.display='block';
+      } else {
+        loginTab.classList.add('active'); signupTab.classList.remove('active');
+        loginPane.style.display='block'; signupPane.style.display='none';
+      }
+      document.getElementById('login-email')?.focus();
+    }
+    function closeAuthModal(){
+      authOverlay.style.display = 'none';
+      authOverlay.setAttribute('aria-hidden','true');
+      ['login-email','login-password','signup-email','signup-password','signup-password2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    }
+    document.getElementById('tab-auth-login').addEventListener('click', ()=> openAuthModal('login'));
+    document.getElementById('tab-auth-signup').addEventListener('click', ()=> openAuthModal('signup'));
+    document.getElementById('close-auth').addEventListener('click', closeAuthModal);
+    document.getElementById('btn-cancel-signup').addEventListener('click', closeAuthModal);
+    document.getElementById('btn-signup').addEventListener('click', signup);
+    document.getElementById('btn-login').addEventListener('click', login);
 
-  async deleteCategory(id) {
-    const { error } = await SB.from('categories').delete().eq('id', id);
-    if (error) throw error;
-  },
+    // ===== USER AREA =====
+    function renderUserArea(){
+      const area = document.getElementById('user-area');
+      area.innerHTML = '';
+      if (currentUser){
+        const userDiv = document.createElement('div');
+        userDiv.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div>
+              <div style="font-weight:700">${escapeHtml(currentUser.email)}</div>
+              <div class="small-muted">вошёл</div>
+            </div>
+            <button class="btn" id="btn-logout-small" style="padding:6px 8px;font-size:13px;">Выйти</button>
+          </div>
+        `;
+        area.appendChild(userDiv);
+        document.getElementById('btn-logout-small').addEventListener('click', logout);
+      } else {
+        const guestDiv = document.createElement('div');
+        guestDiv.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="font-weight:700">Не авторизован</div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button class="btn" id="btn-open-login">Войти</button>
+              <button class="btn" id="btn-open-signup">Регистрация</button>
+            </div>
+          </div>
+        `;
+        area.appendChild(guestDiv);
+        document.getElementById('btn-open-login').addEventListener('click', ()=> openAuthModal('login'));
+        document.getElementById('btn-open-signup').addEventListener('click', ()=> openAuthModal('signup'));
+      }
+    }
 
-  /* ---- Expenses ---- */
-  async saveExpense(exp) {
-    exp.user_id = authService.userId();
-    const { error } = await SB.from('expenses').upsert(exp);
-    if (error) throw error;
-  },
+    // ===== RENDER / UI (reused code with DB-backed state) =====
+    let expensesChart = null;
+    function renderChart(){
+      const ctx = document.getElementById('expensesChart').getContext('2d');
+      const sums = {};
+      state.expenses.forEach(e => {
+        const cat = state.categories.find(c => c.id === e.category_id);
+        const catName = cat ? cat.name : 'Без категории';
+        sums[catName] = (sums[catName] || 0) + Number(e.amount || 0);
+      });
+      const labels = Object.keys(sums);
+      const data = labels.map(l => sums[l]);
+      const palette = labels.map((_, i) => `hsla(${(i * 47) % 360} 70% 60% / 0.95)`);
+      if (expensesChart) expensesChart.destroy();
+      expensesChart = new Chart(ctx, {
+        type: 'pie',
+        data: { labels, datasets: [{ data, backgroundColor: palette, hoverOffset: 8, borderWidth: 0 }] },
+        options: {
+          plugins: { legend: { position: 'bottom', labels: { color: '#cfd8e3' } }, tooltip: { callbacks: { label: (ctx) => ctx.label + ': ' + fmt(ctx.raw || 0) } } },
+          maintainAspectRatio: false
+        }
+      });
+    }
 
-  async deleteExpense(id) {
-    const { error } = await SB.from('expenses').delete().eq('id', id);
-    if (error) throw error;
-  },
+    function computeTotalBalance(){ return state.cards.reduce((s, c) => s + Number(c.balance || 0), 0); }
+    function renderSummary(){ document.getElementById('total-balance').textContent = fmt(computeTotalBalance()); document.getElementById('accounts-count').textContent = `${state.cards.length} ${state.cards.length === 1 ? 'карта' : 'карт'}`; }
 
-  /* ---- Payments ---- */
-  async savePayment(p) {
-    p.user_id = authService.userId();
-    const { error } = await SB.from('payments').upsert(p);
-    if (error) throw error;
-  },
+    function renderCardsList(){
+      const container = document.getElementById('cards-list'); container.innerHTML = '';
+      state.cards.forEach(c => {
+        const el = document.createElement('div'); el.className = 'bank-card';
+        el.innerHTML = `
+          <div class="meta">
+            <div class="chip" style="background:linear-gradient(135deg, ${c.color || '#2b3141'}, rgba(0,0,0,0.1));">${(c.name || '').slice(0, 2).toUpperCase()}</div>
+            <div>
+              <div style="font-weight:600">${escapeHtml(c.name)}</div>
+              <div class="small-muted">•••• ${escapeHtml(c.last4 || '')}</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:700">${fmt(Number(c.balance || 0))}</div>
+            <div class="small-muted">Баланс</div>
+          </div>
+        `;
+        container.appendChild(el);
+      });
 
-  async deletePayment(id) {
-    const { error } = await SB.from('payments').delete().eq('id', id);
-    if (error) throw error;
-  }
-};
-</script>
-<!-- END BLOCK 6 -->
-<!-- BLOCK 7: JavaScript — UI logic (auth + data sync hooks) -->
-<script>
-/* ===========================
-   Auth modal UI
-   =========================== */
+      const manage = document.getElementById('cards-manage-list'); manage.innerHTML = '';
+      state.cards.forEach(c => {
+        const item = document.createElement('div'); item.className = 'list-item';
+        item.innerHTML = `
+          <div>
+            <div style="font-weight:600">${escapeHtml(c.name)}</div>
+            <div class="small-muted">•••• ${escapeHtml(c.last4)}</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div class="pill">${fmt(Number(c.balance || 0))}</div>
+            <button class="btn small" data-id="${c.id}" data-action="edit">Редактировать</button>
+            <button class="btn small" data-id="${c.id}" data-action="delete">Удалить</button>
+          </div>
+        `;
+        manage.appendChild(item);
+      });
 
+      manage.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id; const action = btn.dataset.action;
+          if (action === 'delete'){
+            if (!confirm('Удалить карту?')) return;
+            await dbDelete('cards', id);
+            await loadDataFromSupabase(); renderAll();
+          } else if (action === 'edit'){
+            const card = state.cards.find(x => x.id === id); if (!card) return;
+            document.getElementById('card-name').value = card.name;
+            document.getElementById('card-last4').value = card.last4;
+            document.getElementById('card-balance').value = Number(card.balance || 0);
+            document.getElementById('save-card').dataset.editId = id;
+            showTab('cards');
+          }
+        });
+      });
+    }
 
-function populateSelects(){
+    function renderRecentExpenses(){
+      const container = document.getElementById('recent-list'); container.innerHTML = '';
+      const last = state.expenses.slice().sort((a,b)=> new Date(b.created_at) - new Date(a.created_at)).slice(0,5);
+      if (last.length === 0) { container.innerHTML = '<div class="small-muted">Пока нет расходов</div>'; return; }
+      last.forEach(e=>{
+        const cat = state.categories.find(c=>c.id===e.category_id);
+        const card = state.cards.find(c=>c.id===e.card_id);
+        const el = document.createElement('div'); el.style.display='flex'; el.style.justifyContent='space-between'; el.style.padding='6px 0';
+        el.innerHTML = `
+          <div>
+            <div style="font-weight:600">${escapeHtml(e.note || (cat ? cat.name : 'Расход'))}</div>
+            <div class="small-muted">${cat ? escapeHtml(cat.name) : '—'} • ${card ? escapeHtml(card.name) : '—'}</div>
+          </div>
+          <div style="text-align:right">${fmt(Number(e.amount || 0))}</div>
+        `;
+        container.appendChild(el);
+      });
+    }
+
+    function renderStats(){
+      const container = document.getElementById('stats-list'); container.innerHTML = '';
+      const sums = {};
+      state.expenses.forEach(e => { const cat = state.categories.find(c=>c.id===e.category_id); const name = cat ? cat.name : 'Без категории'; sums[name] = (sums[name] || 0) + Number(e.amount || 0); });
+      const sorted = Object.entries(sums).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      if (sorted.length === 0) { container.innerHTML = '<div class="small-muted">Нет статистики</div>'; return; }
+      sorted.forEach(([name,amount]) => { const row = document.createElement('div'); row.className='list-item'; row.innerHTML = `<div>${escapeHtml(name)}</div><div style="font-weight:700">${fmt(amount)}</div>`; container.appendChild(row); });
+    }
+
+    let currentFilters = { card_id:'', category_id:'' };
+    function renderExpensesList(){
+      const container = document.getElementById('expenses-list'); container.innerHTML = '';
+      let list = state.expenses.slice().sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
+      if (currentFilters.card_id) list = list.filter(e=>e.card_id === currentFilters.card_id);
+      if (currentFilters.category_id) list = list.filter(e=>e.category_id === currentFilters.category_id);
+      if (list.length === 0) { container.innerHTML = '<div class="small-muted">Нет расходов</div>'; return; }
+      list.forEach(e=>{
+        const cat = state.categories.find(c=>c.id===e.category_id);
+        const card = state.cards.find(c=>c.id===e.card_id);
+        const item = document.createElement('div'); item.className='list-item';
+        item.innerHTML = `
+          <div>
+            <div style="font-weight:600">${escapeHtml(e.note || (cat ? cat.name : 'Расход'))}</div>
+            <div class="small-muted">${cat ? escapeHtml(cat.name) : '—'} • ${new Date(e.created_at).toLocaleString()}</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div style="font-weight:700">${fmt(Number(e.amount||0))}</div>
+            <div class="small-muted">${card ? escapeHtml(card.name) : '—'}</div>
+            <button class="btn small" data-id="${e.id}" data-action="del-exp">Удалить</button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+
+      container.querySelectorAll('button').forEach(b=>{
+        b.addEventListener('click', async ()=>{ const id = b.dataset.id; if (!confirm('Удалить эту операцию?')) return; await dbDelete('expenses', id); await loadDataFromSupabase(); renderAll(); });
+      });
+    }
+
+    function renderCategories(){
+      const container = document.getElementById('categories-list'); container.innerHTML = '';
+      if (!state.categories || state.categories.length === 0){ container.innerHTML = '<div class="small-muted">Нет категорий</div>'; return; }
+      state.categories.forEach(c=>{
+        const item = document.createElement('div'); item.className='list-item';
+        item.innerHTML = `
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div style="font-weight:600">${escapeHtml(c.name)}</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn small" data-id="${c.id}" data-action="delete">Удалить</button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+
+      container.querySelectorAll('button').forEach(b=>{
+        b.addEventListener('click', async ()=>{
+          const id = b.dataset.id;
+          if (!confirm('Удалить категорию?')) return;
+          await dbUpdate('expenses', null, {}); // no-op placeholder
+          await dbDelete('categories', id);
+          await loadDataFromSupabase(); renderAll();
+        });
+      });
+    }
+
+    function renderPayments(){
+      const container = document.getElementById('payments-list'); container.innerHTML = '';
+      if (!state.payments || state.payments.length === 0){ container.innerHTML = '<div class="small-muted">Нет обязательных платежей</div>'; return; }
+      state.payments.forEach(p=>{
+        const card = state.cards.find(c=>c.id===p.card_id);
+        const row = document.createElement('div'); row.className='payment-row';
+        row.innerHTML = `
+          <div style="display:flex;gap:12px;align-items:center;">
+            <input type="checkbox" ${p.paid ? 'checked' : ''} data-id="${p.id}" />
+            <div>
+              <div style="font-weight:600">${escapeHtml(p.name)}</div>
+              <div class="small-muted">${card ? escapeHtml(card.name) : 'Карты не назначено'}</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div style="font-weight:700">${fmt(Number(p.amount || 0))}</div>
+            <button class="btn small" data-id="${p.id}" data-action="del-pay">Удалить</button>
+          </div>
+        `;
+        container.appendChild(row);
+
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', async ()=>{
+          const newPaid = checkbox.checked;
+          await dbUpdate('payments', p.id, { paid: newPaid });
+          if (newPaid && card){
+            await dbUpdate('cards', card.id, { balance: Number(card.balance || 0) - Number(p.amount || 0) });
+          } else if (!newPaid && card){
+            await dbUpdate('cards', card.id, { balance: Number(card.balance || 0) + Number(p.amount || 0) });
+          }
+          await loadDataFromSupabase(); renderAll();
+        });
+
+        row.querySelectorAll('button').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            const id = btn.dataset.id;
+            if (!confirm('Удалить платёж?')) return;
+            await dbDelete('payments', id);
+            await loadDataFromSupabase(); renderAll();
+          });
+        });
+      });
+    }
+
+    function populateSelects(){
       const selectsCat = ['expense-category','quick-category','filter-category'];
       selectsCat.forEach(id=>{
         const el = document.getElementById(id); if (!el) return; el.innerHTML = '';
         if (id === 'filter-category'){ const opt = document.createElement('option'); opt.value=''; opt.textContent='По всем категориям'; el.appendChild(opt); }
-        state.categories.forEach(c => { const opt = document.createElement('option'); opt.value=c.id; opt.textContent=c.name; el.appendChild(opt); });
+        state.categories.forEach(c => { const opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.name; el.appendChild(opt); });
       });
       const selectsCard = ['expense-card','quick-card','filter-card','payment-card'];
       selectsCard.forEach(id=>{
@@ -569,896 +798,182 @@ function populateSelects(){
       });
     }
 
-    // ---- Form handlers ----
-    /* ===========================
-   Expenses — Supabase handlers
-   =========================== */
-
-// Добавить расход (основная форма)
-document.getElementById('save-expense').addEventListener('click', async () => {
-  try {
-    const amount = Number(document.getElementById('expense-amount').value);
-    const categoryId = document.getElementById('expense-category').value || null;
-    const cardId = document.getElementById('expense-card').value;
-    const note = document.getElementById('expense-note').value.trim();
-
-    if (!amount || !cardId) {
-      alert('Укажи сумму и карту');
-      return;
-    }
-
-    const card = state.cards.find(c => c.id === cardId);
-    if (!card) {
-      alert('Карта не найдена');
-      return;
-    }
-
-    const newBalance = Number(card.balance) - amount;
-    if (newBalance < 0) {
-      const ok = confirm('Баланс карты станет отрицательным. Продолжить?');
-      if (!ok) return;
-    }
-
-    // 1. сохраняем расход
-    await dataService.saveExpense({
-      amount,
-      category_id: categoryId,
-      card_id: cardId,
-      note,
-      date: new Date().toISOString()
-    });
-
-    // 2. обновляем баланс карты
-    await dataService.saveCard({
-      id: card.id,
-      balance: newBalance
-    });
-
-    // 3. перезагружаем данные
-    await dataService.loadAll();
-    renderAll();
-
-    // очистка формы
-    document.getElementById('expense-amount').value = '';
-    document.getElementById('expense-note').value = '';
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка при добавлении расхода');
-  }
-});
-
-// Быстрый расход (Dashboard)
-document.getElementById('quick-add-expense-2').addEventListener('click', async () => {
-  try {
-    const amount = Number(document.getElementById('quick-amount').value);
-    const categoryId = document.getElementById('quick-category').value || null;
-    const cardId = document.getElementById('quick-card').value;
-
-    if (!amount || !cardId) {
-      alert('Укажи сумму и карту');
-      return;
-    }
-
-    const card = state.cards.find(c => c.id === cardId);
-    if (!card) {
-      alert('Карта не найдена');
-      return;
-    }
-
-    const newBalance = Number(card.balance) - amount;
-    if (newBalance < 0) {
-      const ok = confirm('Баланс карты станет отрицательным. Продолжить?');
-      if (!ok) return;
-    }
-
-    await dataService.saveExpense({
-      amount,
-      category_id: categoryId,
-      card_id: cardId,
-      note: 'Быстрая операция',
-      date: new Date().toISOString()
-    });
-
-    await dataService.saveCard({
-      id: card.id,
-      balance: newBalance
-    });
-
-    await dataService.loadAll();
-    renderAll();
-
-    document.getElementById('quick-amount').value = '';
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка при добавлении быстрого расхода');
-  }
-});
+    // ===== FORM HANDLERS (use DB functions) =====
 
     // Cards
-    /* ===========================
-   Cards — Supabase handlers
-   =========================== */
-
-// Добавить / обновить карту
-document.getElementById('save-card').addEventListener('click', async () => {
-  try {
-    const btn = document.getElementById('save-card');
-    const editId = btn.dataset.editId || null;
-
-    const name = document.getElementById('card-name').value.trim();
-    const last4 = document.getElementById('card-last4').value.trim();
-    const balance = Number(document.getElementById('card-balance').value) || 0;
-
-    if (!name) {
-      alert('Введите название карты');
-      return;
-    }
-
-    const payload = {
-      name,
-      last4,
-      balance,
-      color: randomColor()
-    };
-
-    // EDIT
-    if (editId) {
-      payload.id = editId;
-      await dataService.saveCard(payload);
-      delete btn.dataset.editId;
-    }
-    // CREATE
-    else {
-      await dataService.saveCard(payload);
-    }
-
-    await dataService.loadAll();
-    renderAll();
-
-    // очистка формы
-    document.getElementById('card-name').value = '';
-    document.getElementById('card-last4').value = '';
-    document.getElementById('card-balance').value = '';
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка при сохранении карты');
-  }
-});
-
-// Управление картами (edit / delete)
-document.getElementById('cards-manage-list').addEventListener('click', async (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-
-  const id = btn.dataset.id;
-  const action = btn.dataset.action;
-  if (!id || !action) return;
-
-  try {
-    // DELETE
-    if (action === 'delete') {
-      const ok = confirm('Удалить карту? Все связанные расходы останутся без карты.');
-      if (!ok) return;
-
-      await dataService.deleteCard(id);
-      await dataService.loadAll();
-      renderAll();
-    }
-
-    // EDIT
-    if (action === 'edit') {
-      const card = state.cards.find(c => c.id === id);
-      if (!card) return;
-
-      document.getElementById('card-name').value = card.name;
-      document.getElementById('card-last4').value = card.last4 || '';
-      document.getElementById('card-balance').value = Number(card.balance || 0);
-
-      document.getElementById('save-card').dataset.editId = id;
-
-      showTab('cards');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка при управлении картой');
-  }
-});
+    document.getElementById('form-add-card').addEventListener('submit', ()=>{ document.getElementById('save-card').click(); });
+    document.getElementById('save-card').addEventListener('click', async ()=>{
+      if (!currentUser) return openAuthModal('login');
+      const editId = document.getElementById('save-card').dataset.editId;
+      const name = document.getElementById('card-name').value.trim();
+      const last4 = document.getElementById('card-last4').value.trim();
+      const bal = Number(document.getElementById('card-balance').value) || 0;
+      if (!name) return alert('Введите название карты');
+      if (editId){
+        await dbUpdate('cards', editId, { name, last4, balance: bal });
+        delete document.getElementById('save-card').dataset.editId;
+        await loadDataFromSupabase(); renderAll(); alert('Карта обновлена');
+      } else {
+        await dbInsert('cards', { name, last4, balance: bal, color: randomColor() });
+        await loadDataFromSupabase(); renderAll();
+        document.getElementById('card-name').value=''; document.getElementById('card-last4').value=''; document.getElementById('card-balance').value='';
+      }
+    });
 
     // Expenses
     document.getElementById('form-add-expense').addEventListener('submit', ()=>{ document.getElementById('save-expense').click(); });
-    document.getElementById('save-expense').addEventListener('click', ()=>{
+    document.getElementById('save-expense').addEventListener('click', async ()=>{
+      if (!currentUser) return openAuthModal('login');
       const amount = Number(document.getElementById('expense-amount').value) || 0;
-      const categoryId = document.getElementById('expense-category').value || null;
-      const cardId = document.getElementById('expense-card').value || null;
+      const category_id = document.getElementById('expense-category').value || null;
+      const card_id = document.getElementById('expense-card').value || null;
       const note = document.getElementById('expense-note').value.trim();
-      if (!amount || !cardId) return alert('Укажи сумму и карту');
-      const card = state.cards.find(c=>c.id===cardId);
+      if (!amount || !card_id) return alert('Укажи сумму и карту');
+      // decrease card balance
+      const card = state.cards.find(c=>c.id===card_id);
       if (card){
-        const newBal = Number(card.balance||0) - amount;
+        const newBal = Number(card.balance || 0) - amount;
         if (newBal < 0 && !confirm('Баланс карты станет отрицательным. Продолжить?')) return;
-        card.balance = newBal;
+        await dbUpdate('cards', card.id, { balance: newBal });
       }
-      state.expenses.push({ id: uid('exp'), amount, categoryId, cardId, note, date: new Date().toISOString() });
-      persistAll(); renderAll();
-      document.getElementById('expense-amount').value=''; document.getElementById('expense-note').value='';
-      alert('Расход сохранён');
+      await dbInsert('expenses', { amount, category_id, card_id, note, created_at: new Date().toISOString() });
+      await loadDataFromSupabase(); renderAll();
+      document.getElementById('expense-amount').value=''; document.getElementById('expense-note').value=''; alert('Расход сохранён');
     });
 
     // Quick expense
-    document.getElementById('quick-add-expense-2').addEventListener('click', ()=>{
+    document.getElementById('quick-add-expense-2').addEventListener('click', async ()=>{
+      if (!currentUser) return openAuthModal('login');
       const amount = Number(document.getElementById('quick-amount').value) || 0;
-      const categoryId = document.getElementById('quick-category').value || null;
-      const cardId = document.getElementById('quick-card').value || null;
-      if (!amount || !cardId) return alert('Укажи сумму и карту');
-      const card = state.cards.find(c=>c.id===cardId);
+      const category_id = document.getElementById('quick-category').value || null;
+      const card_id = document.getElementById('quick-card').value || null;
+      if (!amount || !card_id) return alert('Укажи сумму и карту');
+      const card = state.cards.find(c=>c.id===card_id);
       if (card){
-        const newBal = Number(card.balance||0) - amount;
+        const newBal = Number(card.balance || 0) - amount;
         if (newBal < 0 && !confirm('Баланс карты станет отрицательным. Продолжить?')) return;
-        card.balance = newBal;
+        await dbUpdate('cards', card.id, { balance: newBal });
       }
-      state.expenses.push({ id: uid('exp'), amount, categoryId, cardId, note:'Быстрая операция', date:new Date().toISOString() });
-      persistAll(); renderAll();
+      await dbInsert('expenses', { amount, category_id, card_id, note: 'Быстрая операция', created_at: new Date().toISOString() });
+      await loadDataFromSupabase(); renderAll();
       document.getElementById('quick-amount').value='';
     });
 
     document.getElementById('clear-expense').addEventListener('click', ()=>{ document.getElementById('expense-amount').value=''; document.getElementById('expense-note').value=''; });
 
     // Filters
-    document.getElementById('apply-filters').addEventListener('click', ()=>{ currentFilters.cardId = document.getElementById('filter-card').value || ''; currentFilters.categoryId = document.getElementById('filter-category').value || ''; renderExpensesList(); });
-    document.getElementById('reset-filters').addEventListener('click', ()=>{ currentFilters = { cardId:'', categoryId:'' }; document.getElementById('filter-card').value=''; document.getElementById('filter-category').value=''; renderExpensesList(); });
+    document.getElementById('apply-filters').addEventListener('click', ()=>{ currentFilters.card_id = document.getElementById('filter-card').value || ''; currentFilters.category_id = document.getElementById('filter-category').value || ''; renderExpensesList(); });
+    document.getElementById('reset-filters').addEventListener('click', ()=>{ currentFilters = { card_id:'', category_id:'' }; document.getElementById('filter-card').value=''; document.getElementById('filter-category').value=''; renderExpensesList(); });
 
     // Categories
-    /* ===========================
-   Categories — Supabase handlers
-   =========================== */
-
-// Добавить категорию
-document.getElementById('save-category').addEventListener('click', async () => {
-  try {
-    const input = document.getElementById('category-name');
-    const name = input.value.trim();
-
-    if (!name) {
-      alert('Введите название категории');
-      return;
-    }
-
-    await dataService.saveCategory({ name });
-
-    await dataService.loadAll();
-    renderAll();
-
-    input.value = '';
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка при добавлении категории');
-  }
-});
-
-// Управление категориями (rename / delete)
-document.getElementById('categories-list').addEventListener('click', async (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-
-  const id = btn.dataset.id;
-  const action = btn.dataset.action;
-  if (!id || !action) return;
-
-  try {
-    const category = state.categories.find(c => c.id === id);
-    if (!category) return;
-
-    // DELETE
-    if (action === 'delete') {
-      const ok = confirm(
-        'Удалить категорию?\nВсе связанные расходы останутся без категории.'
-      );
-      if (!ok) return;
-
-      await dataService.deleteCategory(id);
-
-      await dataService.loadAll();
-      renderAll();
-    }
-
-    // RENAME
-    if (action === 'rename') {
-      const newName = prompt('Новое название категории', category.name);
-      if (!newName || newName.trim() === category.name) return;
-
-      await dataService.saveCategory({
-        id,
-        name: newName.trim()
-      });
-
-      await dataService.loadAll();
-      renderAll();
-    }
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка при управлении категорией');
-  }
-});
-
-
-    // Payments
-    /* ===========================
-   Payments — Supabase handlers
-   =========================== */
-
-// Добавить / обновить платёж
-document.getElementById('save-payment').addEventListener('click', async () => {
-  try {
-    const btn = document.getElementById('save-payment');
-    const editId = btn.dataset.editId || null;
-
-    const name = document.getElementById('payment-name').value.trim();
-    const amount = Number(document.getElementById('payment-amount').value) || 0;
-    const cardId = document.getElementById('payment-card').value || null;
-
-    if (!name || !amount) {
-      alert('Укажи название и сумму');
-      return;
-    }
-
-    const payload = {
-      name,
-      amount,
-      card_id: cardId,
-      paid: false
-    };
-
-    // EDIT
-    if (editId) {
-      payload.id = editId;
-      await dataService.savePayment(payload);
-      delete btn.dataset.editId;
-    }
-    // CREATE
-    else {
-      await dataService.savePayment(payload);
-    }
-
-    await dataService.loadAll();
-    renderAll();
-
-    // очистка формы
-    document.getElementById('payment-name').value = '';
-    document.getElementById('payment-amount').value = '';
-    document.getElementById('payment-card').value = '';
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка при сохранении платежа');
-  }
-});
-
-// Управление платежами (edit / delete / paid)
-document.getElementById('payments-list').addEventListener('click', async (e) => {
-  const btn = e.target.closest('button');
-  const checkbox = e.target.closest('input[type="checkbox"]');
-
-  try {
-    // ----- CHECKBOX (PAID / UNPAID) -----
-    if (checkbox) {
-      const id = checkbox.dataset.id;
-      const payment = state.payments.find(p => p.id === id);
-      if (!payment) return;
-
-      const card = state.cards.find(c => c.id === payment.card_id);
-      if (!card) {
-        alert('Платёж не привязан к карте');
-        checkbox.checked = false;
-        return;
-      }
-
-      // отметить как оплаченный
-      if (checkbox.checked && !payment.paid) {
-        const newBalance = Number(card.balance) - Number(payment.amount);
-        if (newBalance < 0 && !confirm('Баланс станет отрицательным. Продолжить?')) {
-          checkbox.checked = false;
-          return;
-        }
-
-        await dataService.saveCard({
-          id: card.id,
-          balance: newBalance
-        });
-
-        await dataService.savePayment({
-          id: payment.id,
-          paid: true
-        });
-      }
-
-      // отменить оплату
-      if (!checkbox.checked && payment.paid) {
-        const ok = confirm('Вернуть сумму на карту?');
-        if (!ok) {
-          checkbox.checked = true;
-          return;
-        }
-
-        await dataService.saveCard({
-          id: card.id,
-          balance: Number(card.balance) + Number(payment.amount)
-        });
-
-        await dataService.savePayment({
-          id: payment.id,
-          paid: false
-        });
-      }
-
-      await dataService.loadAll();
-      renderAll();
-      return;
-    }
-
-    if (!btn) return;
-
-    const id = btn.dataset.id;
-    const action = btn.dataset.action;
-    if (!id || !action) return;
-
-    const payment = state.payments.find(p => p.id === id);
-    if (!payment) return;
-
-    // DELETE
-    if (action === 'del-pay') {
-      const ok = confirm('Удалить платёж?');
-      if (!ok) return;
-
-      await dataService.deletePayment(id);
-      await dataService.loadAll();
-      renderAll();
-    }
-
-    // EDIT
-    if (action === 'edit-pay') {
-      document.getElementById('payment-name').value = payment.name;
-      document.getElementById('payment-amount').value = Number(payment.amount);
-      document.getElementById('payment-card').value = payment.card_id || '';
-
-      document.getElementById('save-payment').dataset.editId = id;
-
-      showTab('payments');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка при управлении платежом');
-  }
-});
-
-    // Export / Import (работают с текущим пользователем)
-   /* ===========================
-   Export / Import — Supabase
-   =========================== */
-
-// ---------- EXPORT ----------
-document.getElementById('export-data').addEventListener('click', () => {
-  if (!currentUser) {
-    alert('Экспорт доступен только для авторизованного пользователя');
-    return;
-  }
-
-  const dump = {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    user: currentUser.email,
-    cards: state.cards,
-    categories: state.categories,
-    expenses: state.expenses,
-    payments: state.payments
-  };
-
-  const blob = new Blob(
-    [JSON.stringify(dump, null, 2)],
-    { type: 'application/json' }
-  );
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `moneyflow-backup-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-
-// ---------- IMPORT ----------
-document.getElementById('import-data').addEventListener('click', async () => {
-  if (!currentUser) {
-    alert('Импорт доступен только для авторизованного пользователя');
-    return;
-  }
-
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'application/json';
-
-  input.onchange = async () => {
-    const file = input.files[0];
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
-      if (
-        !data ||
-        !Array.isArray(data.cards) ||
-        !Array.isArray(data.categories) ||
-        !Array.isArray(data.expenses) ||
-        !Array.isArray(data.payments)
-      ) {
-        alert('Неверный формат файла');
-        return;
-      }
-
-      const ok = confirm(
-        'Импортировать данные?\n\n' +
-        'Все текущие данные пользователя будут УДАЛЕНЫ и заменены.'
-      );
-      if (!ok) return;
-
-      const userId = authService.userId();
-
-      // 1️⃣ удалить старые данные
-      await Promise.all([
-        supabase.from('expenses').delete().eq('user_id', userId),
-        supabase.from('payments').delete().eq('user_id', userId),
-        supabase.from('cards').delete().eq('user_id', userId),
-        supabase.from('categories').delete().eq('user_id', userId)
-      ]);
-
-      // 2️⃣ подготовить данные (user_id!)
-      const cards = data.cards.map(c => ({
-        ...c,
-        user_id: userId
-      }));
-
-      const categories = data.categories.map(c => ({
-        ...c,
-        user_id: userId
-      }));
-
-      const expenses = data.expenses.map(e => ({
-        ...e,
-        user_id: userId
-      }));
-
-      const payments = data.payments.map(p => ({
-        ...p,
-        user_id: userId
-      }));
-
-      // 3️⃣ загрузить новые данные
-      if (cards.length) await supabase.from('cards').insert(cards);
-      if (categories.length) await supabase.from('categories').insert(categories);
-      if (expenses.length) await supabase.from('expenses').insert(expenses);
-      if (payments.length) await supabase.from('payments').insert(payments);
-
-      // 4️⃣ перезагрузить состояние
-      await dataService.loadAll();
-      renderAll();
-
-      alert('Импорт успешно завершён');
-
-    } catch (err) {
-      console.error(err);
-      alert('Ошибка при импорте данных');
-    }
-  };
-
-  input.click();
-});
-
-
-    // Demo data button
-    document.getElementById('add-sample-data').addEventListener('click', ()=>{
-      if (!confirm('Добавить демонстрационные данные в текущий аккаунт?')) return;
-      // добавим demo, но сохраним уникальные id
-      const demoCopy = JSON.parse(JSON.stringify(demo));
-      // перегенерим id
-      demoCopy.cards = demoCopy.cards.map(c=> ({ ...c, id: uid('card'), color: randomColor() }));
-      demoCopy.categories = demoCopy.categories.map(c=> ({ ...c, id: uid('cat') }));
-      state.cards = demoCopy.cards;
-      state.categories = demoCopy.categories;
-      state.expenses = demoCopy.expenses;
-      state.payments = demoCopy.payments;
-      persistAll(); renderAll();
+    document.getElementById('form-add-category').addEventListener('submit', ()=>{ document.getElementById('save-category').click(); });
+    document.getElementById('save-category').addEventListener('click', async ()=>{
+      if (!currentUser) return openAuthModal('login');
+      const name = document.getElementById('category-name').value.trim(); if (!name) return alert('Введите название категории');
+      await dbInsert('categories', { name });
+      await loadDataFromSupabase(); renderAll(); document.getElementById('category-name').value='';
     });
 
-function openAuth(tab='login'){
-  authOverlay.style.display = 'flex';
-  if (tab === 'signup'){
-    authLoginTab.classList.remove('active');
-    authSignupTab.classList.add('active');
-    authLoginPane.style.display='none';
-    authSignupPane.style.display='block';
-  } else {
-    authLoginTab.classList.add('active');
-    authSignupTab.classList.remove('active');
-    authLoginPane.style.display='block';
-    authSignupPane.style.display='none';
-  }
-}
-function closeAuth(){
-  authOverlay.style.display = 'none';
-}
+    // Payments
+    document.getElementById('form-add-payment').addEventListener('submit', ()=>{ document.getElementById('save-payment').click(); });
+    document.getElementById('save-payment').addEventListener('click', async ()=>{
+      if (!currentUser) return openAuthModal('login');
+      const editId = document.getElementById('save-payment').dataset.editId;
+      if (editId){
+        const p = state.payments.find(x=>x.id===editId); if (!p) return;
+        await dbUpdate('payments', editId, { name: document.getElementById('payment-name').value.trim(), amount: Number(document.getElementById('payment-amount').value) || 0, card_id: document.getElementById('payment-card').value || null });
+        delete document.getElementById('save-payment').dataset.editId;
+        await loadDataFromSupabase(); renderAll(); alert('Платёж обновлён'); return;
+      }
+      const name = document.getElementById('payment-name').value.trim();
+      const amount = Number(document.getElementById('payment-amount').value) || 0;
+      const card_id = document.getElementById('payment-card').value || null;
+      if (!name || !amount) return alert('Укажи название и сумму');
+      await dbInsert('payments', { name, amount, card_id, paid: false });
+      await loadDataFromSupabase(); renderAll(); document.getElementById('payment-name').value=''; document.getElementById('payment-amount').value=''; document.getElementById('payment-card').value='';
+    });
+    document.getElementById('clear-payment').addEventListener('click', ()=>{ document.getElementById('payment-name').value=''; document.getElementById('payment-amount').value=''; document.getElementById('payment-card').value=''; });
 
-document.getElementById('close-auth').onclick = closeAuth;
-document.getElementById('btn-cancel-signup').onclick = closeAuth;
-authLoginTab.onclick = ()=>openAuth('login');
-authSignupTab.onclick = ()=>openAuth('signup');
+    // Export / Import (current user)
+    document.getElementById('export-data').addEventListener('click', ()=>{
+      const dump = { user: currentUser ? currentUser.email : 'guest', cards: state.cards, categories: state.categories, expenses: state.expenses, payments: state.payments, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(dump,null,2)], { type:'application/json' }); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `moneyflow-${currentUser ? currentUser.id : 'guest'}-data.json`; a.click(); URL.revokeObjectURL(url);
+    });
 
-/* ===========================
-   Auth actions
-   =========================== */
-document.getElementById('btn-login').onclick = async ()=>{
-  try{
-    await authService.login(
-      document.getElementById('login-email').value,
-      document.getElementById('login-password').value
-    );
-    closeAuth();
-    await dataService.loadAll();
-    renderAll();
-  }catch(e){ alert(e.message); }
-};
+    document.getElementById('import-data').addEventListener('click', async ()=>{
+      if (!currentUser) return openAuthModal('login');
+      const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+      input.onchange = async ()=>{ const file = input.files[0]; if (!file) return; const reader = new FileReader();
+        reader.onload = async (evt)=>{ try{ const parsed = JSON.parse(evt.target.result); if (!confirm('Импортировать данные из файла? Это перезапишет данные на сервере (для текущего пользователя).')) return;
+            // simple overwrite: delete existing then insert imported
+            // NOTE: this is minimal; for production you'd implement careful merges/IDs handling
+            for (const r of state.expenses) await dbDelete('expenses', r.id);
+            for (const r of state.payments) await dbDelete('payments', r.id);
+            for (const r of state.categories) await dbDelete('categories', r.id);
+            for (const r of state.cards) await dbDelete('cards', r.id);
+            // insert new
+            for (const c of parsed.cards || []) await dbInsert('cards', { name: c.name, last4: c.last4, balance: c.balance, color: c.color || randomColor() });
+            for (const cat of parsed.categories || []) await dbInsert('categories', { name: cat.name });
+            for (const e of parsed.expenses || []) await dbInsert('expenses', { amount: e.amount, category_id: e.category_id || null, card_id: e.card_id || null, note: e.note || '', created_at: e.created_at || new Date().toISOString() });
+            for (const p of parsed.payments || []) await dbInsert('payments', { name: p.name, amount: p.amount, card_id: p.card_id || null, paid: p.paid || false });
+            await loadDataFromSupabase(); renderAll(); alert('Импорт выполнен');
+          } catch(e){ alert('Не удалось прочитать файл: ' + e.message); } };
+        reader.readAsText(file);
+      };
+      input.click();
+    });
 
-document.getElementById('btn-signup').onclick = async ()=>{
-  const p1 = signup-password.value;
-  const p2 = signup-password2.value;
-  if (p1 !== p2) return alert('Пароли не совпадают');
-  try{
-    await authService.signup(
-      document.getElementById('signup-email').value,
-      p1
-    );
-    closeAuth();
-    await dataService.loadAll();
-    renderAll();
-  }catch(e){ alert(e.message); }
-};
+    // Demo button: insert demo set for current user
+    document.getElementById('add-sample-data').addEventListener('click', async ()=>{
+      if (!currentUser) return openAuthModal('login');
+      if (!confirm('Добавить демонстрационные данные в текущий аккаунт?')) return;
+      for (const c of demo.cards) await dbInsert('cards', { name: c.name, last4: c.last4, balance: c.balance, color: c.color || randomColor() });
+      for (const cat of demo.categories) await dbInsert('categories', { name: cat.name });
+      await loadDataFromSupabase(); renderAll();
+    });
 
-document.getElementById('btn-login-guest').onclick = ()=>{
-  currentUser = null;
-  state = { cards:[], categories:[], expenses:[], payments:[] };
-  closeAuth();
-  renderAll();
-};
+    // Tabs
+    const tabs = ['dashboard','cards','expenses','categories','payments'];
+    function showTab(name){
+      tabs.forEach(t=>{ document.getElementById('tab-'+t).classList.toggle('active', t===name); document.getElementById('tab-'+t+'-content').style.display = (t===name)?'block':'none'; });
+      document.getElementById('content-area').querySelector('[role="region"]').focus && document.getElementById('content-area').querySelector('[role="region"]').focus();
+    }
+    tabs.forEach(t=>{ document.getElementById('tab-'+t).addEventListener('click', ()=> showTab(t)); });
+    document.getElementById('quick-add-card').addEventListener('click', ()=> showTab('cards'));
+    document.getElementById('show-cards-tab').addEventListener('click', ()=> showTab('cards'));
+    document.getElementById('quick-add-expense').addEventListener('click', ()=> showTab('expenses'));
+    document.getElementById('open-expenses-tab').addEventListener('click', ()=> showTab('expenses'));
 
-/* ===========================
-   User area render
-   =========================== */
-function renderUserArea(){
-  const area = document.getElementById('user-area');
-  area.innerHTML = '';
+    function renderAll(){ populateSelects(); renderSummary(); renderCardsList(); renderRecentExpenses(); renderStats(); renderExpensesList(); renderCategories(); renderPayments(); renderChart(); renderUserArea(); }
 
-  if (currentUser){
-    area.innerHTML = `
-      <div>
-        <div style="font-weight:700">${currentUser.email}</div>
-        <button class="btn" id="btn-logout-small">Выйти</button>
-      </div>
-    `;
-    document.getElementById('btn-logout-small').onclick = async ()=>{
-      await authService.logout();
-      state = { cards:[], categories:[], expenses:[], payments:[] };
+    // Initial load: check session
+    (async ()=>{
+      const { data } = await supabase.auth.getSession();
+      currentUser = data?.session?.user || null;
+      if (currentUser) {
+        await loadDataFromSupabase();
+        subscribeToUpdates();
+      }
       renderAll();
+    })();
+
+    // UX helpers
+    document.addEventListener('keydown', (e)=>{ if (e.key === 'N' || e.key === 'n') showTab('expenses'); if (e.key === 'C' || e.key === 'c') showTab('cards'); if (e.key === 'D' || e.key === 'd') showTab('dashboard'); });
+    document.addEventListener('focusin', (e)=>{ if (e.target && e.target.matches('button,input,select,textarea')) e.target.style.outline = '2px solid rgba(124,58,237,0.22)'; });
+    document.addEventListener('focusout', (e)=>{ if (e.target && e.target.matches('button,input,select,textarea')) e.target.style.outline = 'none'; });
+
+    // Dev helper
+    window._moneyflow_clear_all = async function(){
+      if (!confirm('Полностью очистить все данные MoneyFlow для текущного пользователя?')) return;
+      if (!currentUser) return alert('Нужен залогиненный пользователь');
+      // delete all rows for user
+      await supabase.from('expenses').delete().eq('user_id', currentUser.id);
+      await supabase.from('payments').delete().eq('user_id', currentUser.id);
+      await supabase.from('categories').delete().eq('user_id', currentUser.id);
+      await supabase.from('cards').delete().eq('user_id', currentUser.id);
+      await loadDataFromSupabase(); renderAll(); alert('Данные удалены');
     };
-  } else {
-    area.innerHTML = `
-      <div>
-        <div style="font-weight:700">Гость</div>
-        <button class="btn" id="btn-open-login">Войти</button>
-      </div>
-    `;
-    document.getElementById('btn-open-login').onclick = ()=>openAuth('login');
-  }
-  
-}
-/* ===========================
-   renderAll (UI only)
-   =========================== */
-function renderAll(){
-  populateSelects();
-  renderSummary();
-  renderCardsList();
-  renderRecentExpenses();
-  renderStats();
-  renderExpensesList();
-  renderCategories();
-  renderPayments();
-  renderChart();
-  renderUserArea();
-}
-
-/* ===========================
-   Demo data
-   =========================== */
-const demo = {
-  cards: [],
-  categories: [],
-  expenses: [],
-  payments: []
-};
-
-/* ===========================
-   Utils
-   =========================== */
-function escapeHtml(text){
-  if (!text) return '';
-  return String(text).replace(/[&<>"']/g, s =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])
-  );
-}
-
-function randomColor(){
-  const h = Math.floor(Math.random() * 360);
-  return `hsl(${h} 70% 45%)`;
-}
-
-const CURRENCY_SYMBOL = '₽';
-
-function fmt(v){
-  if (typeof v !== 'number') v = Number(v) || 0;
-  return v.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }) + ' ' + CURRENCY_SYMBOL;
-}
-
-/* ===========================
-   Render helpers
-   =========================== */
-function computeTotalBalance(){
-  return state.cards.reduce((s,c)=>s + Number(c.balance||0), 0);
-}
-
-function renderSummary(){
-  document.getElementById('total-balance').textContent = fmt(computeTotalBalance());
-  document.getElementById('accounts-count').textContent =
-    `${state.cards.length} карт`;
-}
-
-function renderCardsList(){
-  const container = document.getElementById('cards-list');
-  container.innerHTML = '';
-  state.cards.forEach(c=>{
-    const el = document.createElement('div');
-    el.className = 'bank-card';
-    el.innerHTML = `
-      <div class="meta">
-        <div class="chip">${escapeHtml(c.name.slice(0,2))}</div>
-        <div>
-          <div>${escapeHtml(c.name)}</div>
-          <div class="small-muted">•••• ${escapeHtml(c.last4||'')}</div>
-        </div>
-      </div>
-      <div>${fmt(Number(c.balance||0))}</div>
-    `;
-    container.appendChild(el);
-  });
-}
-
-function renderRecentExpenses(){
-  const container = document.getElementById('recent-list');
-  container.innerHTML = '';
-  state.expenses.slice(-5).reverse().forEach(e=>{
-    const el = document.createElement('div');
-    el.textContent = `${fmt(e.amount)} — ${escapeHtml(e.note||'Расход')}`;
-    container.appendChild(el);
-  });
-}
-
-function renderStats(){}
-
-function renderExpensesList(){
-  const el = document.getElementById('expenses-list');
-  el.innerHTML = '';
-}
-
-function renderCategories(){
-  const el = document.getElementById('categories-list');
-  el.innerHTML = '';
-}
-
-function renderPayments(){
-  const el = document.getElementById('payments-list');
-  el.innerHTML = '';
-}
-
-function renderChart(){}
-
-
-
-/* ===========================
-   Small UX improvements
-   =========================== */
-
-// keyboard shortcuts
-document.addEventListener('keydown', (e)=>{
-  if (e.key === 'N' || e.key === 'n') showTab('expenses');
-  if (e.key === 'C' || e.key === 'c') showTab('cards');
-  if (e.key === 'D' || e.key === 'd') showTab('dashboard');
-});
-
-// focus ring
-document.addEventListener('focusin', (e)=>{
-  if (e.target && e.target.matches('button,input,select,textarea')){
-    e.target.style.outline = '2px solid rgba(124,58,237,0.22)';
-  }
-});
-document.addEventListener('focusout', (e)=>{
-  if (e.target && e.target.matches('button,input,select,textarea')){
-    e.target.style.outline = 'none';
-  }
-});
-function renderAll(){
-  populateSelects();
-  renderSummary();
-  renderCardsList();
-  renderRecentExpenses();
-  renderStats();
-  renderExpensesList();
-  renderCategories();
-  renderPayments();
-  renderChart();
-  renderUserArea();
-}
-
-</script>
-<!-- END BLOCK 7 -->
-<!-- BLOCK 8: JavaScript — renderAll + bootstrapping -->
-<script>
-/* ===========================
-   Boot
-   =========================== */
-async function boot(){
-  await authService.init();
-  await dataService.loadAll();
-  renderAll();
-}
-
-/* ===========================
-   renderAll (UI unchanged)
-   =========================== */
-function renderAll(){
-  renderUserArea();
-  populateSelects();
-  renderSummary();
-  renderCardsList();
-  renderRecentExpenses();
-  renderStats();
-  renderExpensesList();
-  renderCategories();
-  renderPayments();
-  renderChart();
-}
-/* ===========================
-   App bootstrap (Supabase)
-   =========================== */
-async function boot(){
-  await authService.init();     // получаем текущего пользователя
-  await dataService.loadAll();  // грузим данные из Supabase
-  renderAll();                  // ОДИН запуск UI
-}
-
-
-boot();
-</script>
+  </script>
 </body>
 </html>
-<!-- END BLOCK 8 -->

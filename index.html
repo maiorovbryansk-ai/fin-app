@@ -383,13 +383,21 @@
     const SUPABASE_URL = 'https://tzsqgwupguttgsuhbknb.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO';
 
-    const { createClient } = window.supabase;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // безопасно инициализируем supabase — если CDN не загрузился, не ломаем UI
+    const createClient = window.supabase?.createClient;
+    const supabase = createClient ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
     // ===== State/UI =====
     let currentUser = null; // Supabase user object or null
     let state = { cards: [], categories: [], expenses: [], payments: [] };
     let subscriptions = [];
+
+    // Делегированные обработчики для динамически создаваемых кнопок входа/регистрации
+    document.addEventListener('click', (e) => {
+      const t = e.target;
+      if (t && t.matches && t.matches('#btn-open-login')) { openAuthModal('login'); }
+      if (t && t.matches && t.matches('#btn-open-signup')) { openAuthModal('signup'); }
+    });
 
     // Utils
     function uid(prefix = 'id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
@@ -443,22 +451,27 @@
       if (error) alert('Ошибка выхода: ' + error.message);
     }
 
-    // Listen auth changes
-    supabase.auth.onAuthStateChange((event, session) => {
-      currentUser = session?.user || null;
+    // Listen auth changes (only if supabase client доступен)
+    if (supabase && supabase.auth && typeof supabase.auth.onAuthStateChange === 'function') {
+      supabase.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null;
+        renderUserArea();
+        if (currentUser) {
+          loadDataFromSupabase().then(()=>{ renderAll(); subscribeToUpdates(); });
+        } else {
+          state = { cards: [], categories: [], expenses: [], payments: [] };
+          renderAll();
+        }
+      });
+    } else {
+      // fallback: no supabase — оставим приложение в гостевом режиме (UI работает, но данные пусты)
+      currentUser = null;
       renderUserArea();
-      if (currentUser) {
-        loadDataFromSupabase().then(()=>{ renderAll(); subscribeToUpdates(); });
-      } else {
-        // guest: clear state (or keep empty UI)
-        state = { cards: [], categories: [], expenses: [], payments: [] };
-        renderAll();
-      }
-    });
+    }
 
     // ===== DB helpers =====
     async function loadDataFromSupabase(){
-      if (!currentUser) return;
+      if (!supabase || !currentUser) return;
       try {
         const userId = currentUser.id;
         const [cardsRes, categoriesRes, expensesRes, paymentsRes] = await Promise.all([
@@ -478,7 +491,7 @@
     }
 
     function subscribeToUpdates(){
-      if (!currentUser) return;
+      if (!supabase || !currentUser) return;
       subscriptions.forEach(ch => supabase.removeChannel(ch));
       subscriptions = [];
       ['cards','categories','expenses','payments'].forEach(table => {
@@ -493,16 +506,19 @@
     }
 
     async function dbInsert(table, data){
+      if (!supabase || !currentUser) throw new Error('No supabase or user');
       const payload = { ...data, user_id: currentUser.id };
       const { data: res, error } = await supabase.from(table).insert([payload]).select().single();
       if (error) { alert('Ошибка сохранения: ' + error.message); throw error; }
       return res;
     }
     async function dbUpdate(table, id, data){
+      if (!supabase || !currentUser) throw new Error('No supabase or user');
       const { error } = await supabase.from(table).update(data).eq('id', id).eq('user_id', currentUser.id);
       if (error) { alert('Ошибка обновления: ' + error.message); throw error; }
     }
     async function dbDelete(table, id){
+      if (!supabase || !currentUser) throw new Error('No supabase or user');
       const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', currentUser.id);
       if (error) { alert('Ошибка удаления: ' + error.message); throw error; }
     }
@@ -947,13 +963,22 @@
 
     function renderAll(){ populateSelects(); renderSummary(); renderCardsList(); renderRecentExpenses(); renderStats(); renderExpensesList(); renderCategories(); renderPayments(); renderChart(); renderUserArea(); }
 
-    // Initial load: check session
+    // Initial load: check session (safely)
     (async ()=>{
-      const { data } = await supabase.auth.getSession();
-      currentUser = data?.session?.user || null;
-      if (currentUser) {
-        await loadDataFromSupabase();
-        subscribeToUpdates();
+      try {
+        if (supabase && supabase.auth && typeof supabase.auth.getSession === 'function'){
+          const { data } = await supabase.auth.getSession();
+          currentUser = data?.session?.user || null;
+          if (currentUser) {
+            await loadDataFromSupabase();
+            subscribeToUpdates();
+          }
+        } else {
+          currentUser = null;
+        }
+      } catch(err){
+        console.warn('Supabase session check failed', err);
+        currentUser = null;
       }
       renderAll();
     })();
@@ -965,7 +990,7 @@
 
     // Dev helper
     window._moneyflow_clear_all = async function(){
-      if (!confirm('Полностью очистить все данные MoneyFlow для текущного пользователя?')) return;
+      if (!confirm('Полностью очистить все данные MoneyFlow для текущего пользователя?')) return;
       if (!currentUser) return alert('Нужен залогиненный пользователь');
       // delete all rows for user
       await supabase.from('expenses').delete().eq('user_id', currentUser.id);

@@ -7,8 +7,8 @@
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <!-- Supabase JS Client (UMD build via unpkg -> корректный MIME / доступность) -->
-  <script src="https://unpkg.com/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+  <!-- Supabase JS Client (UMD build via jsDelivr — корректный Content-Type) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
 
   <!-- Favicon (data URI) to avoid browser 404 for /favicon.ico -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%237c3aed'/%3E%3Ctext x='50' y='58' font-size='50' text-anchor='middle' fill='white' font-family='Arial'%3EMF%3C/text%3E%3C/svg%3E">
@@ -138,6 +138,12 @@
       <div style="margin-top:18px;">
         <div class="small">Последняя синхронизация: <span class="small-muted" id="last-sync">—</span></div>
         <div class="footer">Данные хранятся на сервере Supabase</div>
+
+        <!-- Diagnostics UI -->
+        <div style="margin-top:10px;">
+          <button id="diag-supabase" class="btn" style="padding:6px 8px;font-size:13px;">Диагностика Supabase</button>
+          <pre id="diag-log" style="max-height:160px;overflow:auto;margin-top:8px;color:#cfd8e3;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;font-size:12px;">Нажмите "Диагностика Supabase" чтобы начать.</pre>
+        </div>
       </div>
     </aside>
 
@@ -1024,6 +1030,81 @@
       await supabase.from('cards').delete().eq('user_id', currentUser.id);
       await loadDataFromSupabase(); renderAll(); alert('Данные удалены');
     };
+
+    // ===== Supabase diagnostics =====
+    function appendDiag(msg){
+      const el = document.getElementById('diag-log');
+      const time = new Date().toLocaleTimeString();
+      if (el) { el.textContent = `${el.textContent}\n[${time}] ${msg}`; el.scrollTop = el.scrollHeight; }
+      console.log('[diag]', msg);
+    }
+
+    async function diagnoseSupabase(){
+      const scriptUrl = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js';
+      appendDiag('Starting Supabase diagnostics...');
+
+      // 1) check window.supabase
+      if (!window.supabase){
+        appendDiag('window.supabase: NOT FOUND');
+      } else {
+        appendDiag('window.supabase: present');
+        appendDiag('createClient: ' + (typeof window.supabase.createClient === 'function' ? 'yes' : 'no'));
+      }
+
+      // 2) fetch the UMD script to inspect headers (CORS / content-type)
+      try{
+        appendDiag('Fetching UMD script to check availability and content-type...');
+        const res = await fetch(scriptUrl, { method:'GET', mode:'cors' });
+        appendDiag(`Fetch status: ${res.status} ${res.statusText}`);
+        const ct = res.headers.get('content-type') || '—';
+        appendDiag(`Content-Type: ${ct}`);
+        if (!res.ok) appendDiag('Warning: script fetch returned non-OK status.');
+        if (!ct.includes('javascript') && !ct.includes('application/javascript') && !ct.includes('text/javascript')){
+          appendDiag('Warning: script Content-Type is not JavaScript; browser may refuse to execute (nosniff).');
+        }
+      }catch(err){
+        appendDiag('Fetch error: ' + (err.message || err));
+      }
+
+      // 3) try to init client (safely) and call getSession
+      if (typeof window.supabase?.createClient === 'function'){
+        try{
+          appendDiag('Trying to init supabase client and call auth.getSession()...');
+          const tmp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          if (tmp && tmp.auth && typeof tmp.auth.getSession === 'function'){
+            try{
+              const { data } = await tmp.auth.getSession();
+              appendDiag('auth.getSession() OK — session present: ' + (data?.session ? 'yes' : 'no'));
+            }catch(err){
+              appendDiag('auth.getSession() failed: ' + (err.message || err));
+            }
+          } else {
+            appendDiag('Created client does not expose auth.getSession()');
+          }
+        }catch(err){
+          appendDiag('Error while creating client / calling API: ' + (err.message || err));
+        }
+      } else {
+        appendDiag('createClient function not available — cannot instantiate client.');
+      }
+
+      appendDiag('Diagnostics finished.');
+    }
+
+    // global error handlers to surface issues
+    window.addEventListener('error', (ev)=>{
+      appendDiag('Global error: ' + (ev.message || ev.error || ev.type || ev.filename || JSON.stringify(ev)));
+    });
+    window.addEventListener('unhandledrejection', (ev)=>{
+      appendDiag('Unhandled rejection: ' + (ev.reason?.message || JSON.stringify(ev.reason)));
+    });
+
+    // wire diag button
+    (function wireDiag(){
+      const btn = document.getElementById('diag-supabase');
+      if (!btn) return;
+      btn.addEventListener('click', ()=>{ document.getElementById('diag-log').textContent = ''; diagnoseSupabase(); });
+    })();
   </script>
 </body>
 </html>

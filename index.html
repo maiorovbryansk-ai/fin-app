@@ -424,25 +424,37 @@
 
     // ===== AUTH =====
     async function signup(){
-      const email = document.getElementById('signup-email').value.trim();
-      const password = document.getElementById('signup-password').value;
-      const password2 = document.getElementById('signup-password2').value;
-      if (!email || !password) return alert('Заполни все поля');
-      if (password !== password2) return alert('Пароли не совпадают');
-      if (password.length < 6) return alert('Пароль должен быть минимум 6 символов');
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) return alert('Ошибка регистрации: ' + error.message);
-      alert('Регистрация успешна. Проверьте почту для подтверждения (если включено).');
-      closeAuthModal();
+      if (!supabase) return alert('Клиент Supabase недоступен. Проверьте подключение скрипта / ключи.');
+      try{
+        const email = document.getElementById('signup-email').value.trim();
+        const password = document.getElementById('signup-password').value;
+        const password2 = document.getElementById('signup-password2').value;
+        if (!email || !password) return alert('Заполни все поля');
+        if (password !== password2) return alert('Пароли не совпадают');
+        if (password.length < 6) return alert('Пароль должен быть минимум 6 символов');
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        alert('Регистрация успешна. Проверьте почту для подтверждения (если включено).');
+        closeAuthModal();
+      }catch(err){
+        console.error('signup error', err);
+        alert('Ошибка регистрации: ' + (err.message || err));
+      }
     }
 
     async function login(){
-      const email = document.getElementById('login-email').value.trim();
-      const password = document.getElementById('login-password').value;
-      if (!email || !password) return alert('Заполни все поля');
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return alert('Ошибка входа: ' + error.message);
-      closeAuthModal();
+      if (!supabase) return alert('Клиент Supabase недоступен. Проверьте подключение скрипта / ключи.');
+      try{
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        if (!email || !password) return alert('Заполни все поля');
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        closeAuthModal();
+      }catch(err){
+        console.error('login error', err);
+        alert('Ошибка входа: ' + (err.message || err));
+      }
     }
 
     async function logout(){

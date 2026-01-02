@@ -558,6 +558,149 @@ const authSignupTab = document.getElementById('tab-auth-signup');
 const authLoginPane = document.getElementById('auth-login');
 const authSignupPane = document.getElementById('auth-signup');
 
+function populateSelects(){
+      const selectsCat = ['expense-category','quick-category','filter-category'];
+      selectsCat.forEach(id=>{
+        const el = document.getElementById(id); if (!el) return; el.innerHTML = '';
+        if (id === 'filter-category'){ const opt = document.createElement('option'); opt.value=''; opt.textContent='По всем категориям'; el.appendChild(opt); }
+        state.categories.forEach(c => { const opt = document.createElement('option'); opt.value=c.id; opt.textContent=c.name; el.appendChild(opt); });
+      });
+      const selectsCard = ['expense-card','quick-card','filter-card','payment-card'];
+      selectsCard.forEach(id=>{
+        const el = document.getElementById(id); if (!el) return; el.innerHTML = '';
+        if (id === 'filter-card'){ const opt = document.createElement('option'); opt.value=''; opt.textContent='По всем картам'; el.appendChild(opt); }
+        state.cards.forEach(c => { const opt = document.createElement('option'); opt.value=c.id; opt.textContent=`${c.name} • •••• ${c.last4} (${fmt(Number(c.balance||0))})`; el.appendChild(opt); });
+      });
+    }
+
+    // ---- Form handlers ----
+    // Cards
+    document.getElementById('form-add-card').addEventListener('submit', ()=>{ document.getElementById('save-card').click(); });
+    document.getElementById('save-card').addEventListener('click', ()=>{
+      const id = document.getElementById('save-card').dataset.editId;
+      const name = document.getElementById('card-name').value.trim();
+      const last4 = document.getElementById('card-last4').value.trim();
+      const bal = Number(document.getElementById('card-balance').value) || 0;
+      if (!name) return alert('Введите название карты');
+      if (id){
+        const card = state.cards.find(c=>c.id===id); if (card){ card.name = name; card.last4 = last4; card.balance = Number(bal); delete document.getElementById('save-card').dataset.editId; persistAll(); renderAll(); alert('Карта обновлена'); }
+      } else {
+        state.cards.push({ id: uid('card'), name, last4, balance: Number(bal), color: randomColor() });
+        persistAll(); renderAll();
+        document.getElementById('card-name').value=''; document.getElementById('card-last4').value=''; document.getElementById('card-balance').value='';
+      }
+    });
+    document.getElementById('reset-cards').addEventListener('click', ()=>{
+      if (!confirm('Сбросить карты до демо-значений? Это удалит существующие карты.')) return;
+      state.cards = demo.cards.map(c=> ({ ...c, id: uid('card') }) );
+      state.expenses = state.expenses.map(e=> ({ ...e, cardId: state.cards[0].id }));
+      state.payments = state.payments.map(p=> ({ ...p, cardId: state.cards[0].id }));
+      persistAll(); renderAll();
+    });
+
+    // Expenses
+    document.getElementById('form-add-expense').addEventListener('submit', ()=>{ document.getElementById('save-expense').click(); });
+    document.getElementById('save-expense').addEventListener('click', ()=>{
+      const amount = Number(document.getElementById('expense-amount').value) || 0;
+      const categoryId = document.getElementById('expense-category').value || null;
+      const cardId = document.getElementById('expense-card').value || null;
+      const note = document.getElementById('expense-note').value.trim();
+      if (!amount || !cardId) return alert('Укажи сумму и карту');
+      const card = state.cards.find(c=>c.id===cardId);
+      if (card){
+        const newBal = Number(card.balance||0) - amount;
+        if (newBal < 0 && !confirm('Баланс карты станет отрицательным. Продолжить?')) return;
+        card.balance = newBal;
+      }
+      state.expenses.push({ id: uid('exp'), amount, categoryId, cardId, note, date: new Date().toISOString() });
+      persistAll(); renderAll();
+      document.getElementById('expense-amount').value=''; document.getElementById('expense-note').value='';
+      alert('Расход сохранён');
+    });
+
+    // Quick expense
+    document.getElementById('quick-add-expense-2').addEventListener('click', ()=>{
+      const amount = Number(document.getElementById('quick-amount').value) || 0;
+      const categoryId = document.getElementById('quick-category').value || null;
+      const cardId = document.getElementById('quick-card').value || null;
+      if (!amount || !cardId) return alert('Укажи сумму и карту');
+      const card = state.cards.find(c=>c.id===cardId);
+      if (card){
+        const newBal = Number(card.balance||0) - amount;
+        if (newBal < 0 && !confirm('Баланс карты станет отрицательным. Продолжить?')) return;
+        card.balance = newBal;
+      }
+      state.expenses.push({ id: uid('exp'), amount, categoryId, cardId, note:'Быстрая операция', date:new Date().toISOString() });
+      persistAll(); renderAll();
+      document.getElementById('quick-amount').value='';
+    });
+
+    document.getElementById('clear-expense').addEventListener('click', ()=>{ document.getElementById('expense-amount').value=''; document.getElementById('expense-note').value=''; });
+
+    // Filters
+    document.getElementById('apply-filters').addEventListener('click', ()=>{ currentFilters.cardId = document.getElementById('filter-card').value || ''; currentFilters.categoryId = document.getElementById('filter-category').value || ''; renderExpensesList(); });
+    document.getElementById('reset-filters').addEventListener('click', ()=>{ currentFilters = { cardId:'', categoryId:'' }; document.getElementById('filter-card').value=''; document.getElementById('filter-category').value=''; renderExpensesList(); });
+
+    // Categories
+    document.getElementById('form-add-category').addEventListener('submit', ()=>{ document.getElementById('save-category').click(); });
+    document.getElementById('save-category').addEventListener('click', ()=>{
+      const name = document.getElementById('category-name').value.trim(); if (!name) return alert('Введите название категории');
+      state.categories.push({ id: uid('cat'), name }); persistAll(); renderAll(); document.getElementById('category-name').value='';
+    });
+    document.getElementById('reset-categories').addEventListener('click', ()=>{ if (!confirm('Сбросить категории к демо-наборам?')) return; state.categories = demo.categories.map(c=> ({ ...c, id: uid('cat') })); state.expenses = state.expenses.map((e,i)=> ({ ...e, categoryId: state.categories[i % state.categories.length].id })); persistAll(); renderAll(); });
+
+    // Payments
+    document.getElementById('form-add-payment').addEventListener('submit', ()=>{ document.getElementById('save-payment').click(); });
+    document.getElementById('save-payment').addEventListener('click', ()=>{
+      const editId = document.getElementById('save-payment').dataset.editId;
+      if (editId){
+        const p = state.payments.find(x=>x.id===editId); if (!p) return;
+        p.name = document.getElementById('payment-name').value.trim();
+        p.amount = Number(document.getElementById('payment-amount').value) || 0;
+        p.cardId = document.getElementById('payment-card').value || null;
+        delete document.getElementById('save-payment').dataset.editId;
+        persistAll(); renderAll(); alert('Платёж обновлён'); return;
+      }
+      const name = document.getElementById('payment-name').value.trim();
+      const amount = Number(document.getElementById('payment-amount').value) || 0;
+      const cardId = document.getElementById('payment-card').value || null;
+      if (!name || !amount) return alert('Укажи название и сумму');
+      state.payments.push({ id: uid('pay'), name, amount, cardId, paid:false }); persistAll(); renderAll(); document.getElementById('payment-name').value=''; document.getElementById('payment-amount').value=''; document.getElementById('payment-card').value='';
+    });
+    document.getElementById('clear-payment').addEventListener('click', ()=>{ document.getElementById('payment-name').value=''; document.getElementById('payment-amount').value=''; document.getElementById('payment-card').value=''; });
+
+    // Export / Import (работают с текущим пользователем)
+    document.getElementById('export-data').addEventListener('click', ()=>{
+      const user = currentUser || '__guest__';
+      const dump = { user: user === '__guest__' ? 'guest' : user, cards: state.cards, categories: state.categories, expenses: state.expenses, payments: state.payments, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(dump,null,2)], { type:'application/json' }); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `moneyflow-${user}-data.json`; a.click(); URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('import-data').addEventListener('click', async ()=>{
+      const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+      input.onchange = ()=>{ const file = input.files[0]; if (!file) return; const reader = new FileReader();
+        reader.onload = (evt)=>{ try{ const parsed = JSON.parse(evt.target.result); if (!confirm('Импортировать данные из файла? Это перезапишет текущие данные пользователя.')) return; state.cards = parsed.cards || []; state.categories = parsed.categories || []; state.expenses = parsed.expenses || []; state.payments = parsed.payments || []; persistAll(); renderAll(); alert('Импорт выполнен'); }catch(e){ alert('Не удалось прочитать файл: ' + e.message); } };
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+
+    // Demo data button
+    document.getElementById('add-sample-data').addEventListener('click', ()=>{
+      if (!confirm('Добавить демонстрационные данные в текущий аккаунт?')) return;
+      // добавим demo, но сохраним уникальные id
+      const demoCopy = JSON.parse(JSON.stringify(demo));
+      // перегенерим id
+      demoCopy.cards = demoCopy.cards.map(c=> ({ ...c, id: uid('card'), color: randomColor() }));
+      demoCopy.categories = demoCopy.categories.map(c=> ({ ...c, id: uid('cat') }));
+      state.cards = demoCopy.cards;
+      state.categories = demoCopy.categories;
+      state.expenses = demoCopy.expenses;
+      state.payments = demoCopy.payments;
+      persistAll(); renderAll();
+    });
+
 function openAuth(tab='login'){
   authOverlay.style.display = 'flex';
   if (tab === 'signup'){

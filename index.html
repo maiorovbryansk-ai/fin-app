@@ -546,15 +546,33 @@
 }
     }
     async function dbUpdate(table, id, data){
-      if (!supabaseClient || !currentUser) throw new Error('No supabase or user');
-      const { error } = await supabaseClient.from(table).update(data).eq('id', id).eq('user_id', currentUser.id);
-      if (error) { alert('Ошибка обновления: ' + error.message); throw error; }
-    }
+  if (!supabaseClient || !currentUser)
+    throw new Error('No supabase or user');
+
+  const { error } = await supabaseClient
+    .from(table)
+    .update(data)
+    .eq('id', id);
+
+  if (error) {
+    alert('Ошибка обновления: ' + error.message);
+    throw error;
+  }
+}
     async function dbDelete(table, id){
-      if (!supabaseClient || !currentUser) throw new Error('No supabase or user');
-      const { error } = await supabaseClient.from(table).delete().eq('id', id).eq('user_id', currentUser.id);
-      if (error) { alert('Ошибка удаления: ' + error.message); throw error; }
-    }
+  if (!supabaseClient || !currentUser)
+    throw new Error('No supabase or user');
+
+  const { error } = await supabaseClient
+    .from(table)
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    alert('Ошибка удаления: ' + error.message);
+    throw error;
+  }
+}
 
     // ===== AUTH MODAL UI =====
     const authOverlay = document.getElementById('auth-overlay');

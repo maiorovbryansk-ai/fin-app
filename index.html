@@ -552,11 +552,7 @@ const dataService = {
 /* ===========================
    Auth modal UI
    =========================== */
-const authOverlay = document.getElementById('auth-overlay');
-const authLoginTab = document.getElementById('tab-auth-login');
-const authSignupTab = document.getElementById('tab-auth-signup');
-const authLoginPane = document.getElementById('auth-login');
-const authSignupPane = document.getElementById('auth-signup');
+
 
 function populateSelects(){
       const selectsCat = ['expense-category','quick-category','filter-category'];
@@ -574,29 +570,204 @@ function populateSelects(){
     }
 
     // ---- Form handlers ----
+    /* ===========================
+   Expenses — Supabase handlers
+   =========================== */
+
+// Добавить расход (основная форма)
+document.getElementById('save-expense').addEventListener('click', async () => {
+  try {
+    const amount = Number(document.getElementById('expense-amount').value);
+    const categoryId = document.getElementById('expense-category').value || null;
+    const cardId = document.getElementById('expense-card').value;
+    const note = document.getElementById('expense-note').value.trim();
+
+    if (!amount || !cardId) {
+      alert('Укажи сумму и карту');
+      return;
+    }
+
+    const card = state.cards.find(c => c.id === cardId);
+    if (!card) {
+      alert('Карта не найдена');
+      return;
+    }
+
+    const newBalance = Number(card.balance) - amount;
+    if (newBalance < 0) {
+      const ok = confirm('Баланс карты станет отрицательным. Продолжить?');
+      if (!ok) return;
+    }
+
+    // 1. сохраняем расход
+    await dataService.saveExpense({
+      amount,
+      category_id: categoryId,
+      card_id: cardId,
+      note,
+      date: new Date().toISOString()
+    });
+
+    // 2. обновляем баланс карты
+    await dataService.saveCard({
+      id: card.id,
+      balance: newBalance
+    });
+
+    // 3. перезагружаем данные
+    await dataService.loadAll();
+    renderAll();
+
+    // очистка формы
+    document.getElementById('expense-amount').value = '';
+    document.getElementById('expense-note').value = '';
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при добавлении расхода');
+  }
+});
+
+// Быстрый расход (Dashboard)
+document.getElementById('quick-add-expense-2').addEventListener('click', async () => {
+  try {
+    const amount = Number(document.getElementById('quick-amount').value);
+    const categoryId = document.getElementById('quick-category').value || null;
+    const cardId = document.getElementById('quick-card').value;
+
+    if (!amount || !cardId) {
+      alert('Укажи сумму и карту');
+      return;
+    }
+
+    const card = state.cards.find(c => c.id === cardId);
+    if (!card) {
+      alert('Карта не найдена');
+      return;
+    }
+
+    const newBalance = Number(card.balance) - amount;
+    if (newBalance < 0) {
+      const ok = confirm('Баланс карты станет отрицательным. Продолжить?');
+      if (!ok) return;
+    }
+
+    await dataService.saveExpense({
+      amount,
+      category_id: categoryId,
+      card_id: cardId,
+      note: 'Быстрая операция',
+      date: new Date().toISOString()
+    });
+
+    await dataService.saveCard({
+      id: card.id,
+      balance: newBalance
+    });
+
+    await dataService.loadAll();
+    renderAll();
+
+    document.getElementById('quick-amount').value = '';
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при добавлении быстрого расхода');
+  }
+});
+
     // Cards
-    document.getElementById('form-add-card').addEventListener('submit', ()=>{ document.getElementById('save-card').click(); });
-    document.getElementById('save-card').addEventListener('click', ()=>{
-      const id = document.getElementById('save-card').dataset.editId;
-      const name = document.getElementById('card-name').value.trim();
-      const last4 = document.getElementById('card-last4').value.trim();
-      const bal = Number(document.getElementById('card-balance').value) || 0;
-      if (!name) return alert('Введите название карты');
-      if (id){
-        const card = state.cards.find(c=>c.id===id); if (card){ card.name = name; card.last4 = last4; card.balance = Number(bal); delete document.getElementById('save-card').dataset.editId; persistAll(); renderAll(); alert('Карта обновлена'); }
-      } else {
-        state.cards.push({ id: uid('card'), name, last4, balance: Number(bal), color: randomColor() });
-        persistAll(); renderAll();
-        document.getElementById('card-name').value=''; document.getElementById('card-last4').value=''; document.getElementById('card-balance').value='';
-      }
-    });
-    document.getElementById('reset-cards').addEventListener('click', ()=>{
-      if (!confirm('Сбросить карты до демо-значений? Это удалит существующие карты.')) return;
-      state.cards = demo.cards.map(c=> ({ ...c, id: uid('card') }) );
-      state.expenses = state.expenses.map(e=> ({ ...e, cardId: state.cards[0].id }));
-      state.payments = state.payments.map(p=> ({ ...p, cardId: state.cards[0].id }));
-      persistAll(); renderAll();
-    });
+    /* ===========================
+   Cards — Supabase handlers
+   =========================== */
+
+// Добавить / обновить карту
+document.getElementById('save-card').addEventListener('click', async () => {
+  try {
+    const btn = document.getElementById('save-card');
+    const editId = btn.dataset.editId || null;
+
+    const name = document.getElementById('card-name').value.trim();
+    const last4 = document.getElementById('card-last4').value.trim();
+    const balance = Number(document.getElementById('card-balance').value) || 0;
+
+    if (!name) {
+      alert('Введите название карты');
+      return;
+    }
+
+    const payload = {
+      name,
+      last4,
+      balance,
+      color: randomColor()
+    };
+
+    // EDIT
+    if (editId) {
+      payload.id = editId;
+      await dataService.saveCard(payload);
+      delete btn.dataset.editId;
+    }
+    // CREATE
+    else {
+      await dataService.saveCard(payload);
+    }
+
+    await dataService.loadAll();
+    renderAll();
+
+    // очистка формы
+    document.getElementById('card-name').value = '';
+    document.getElementById('card-last4').value = '';
+    document.getElementById('card-balance').value = '';
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при сохранении карты');
+  }
+});
+
+// Управление картами (edit / delete)
+document.getElementById('cards-manage-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+  if (!id || !action) return;
+
+  try {
+    // DELETE
+    if (action === 'delete') {
+      const ok = confirm('Удалить карту? Все связанные расходы останутся без карты.');
+      if (!ok) return;
+
+      await dataService.deleteCard(id);
+      await dataService.loadAll();
+      renderAll();
+    }
+
+    // EDIT
+    if (action === 'edit') {
+      const card = state.cards.find(c => c.id === id);
+      if (!card) return;
+
+      document.getElementById('card-name').value = card.name;
+      document.getElementById('card-last4').value = card.last4 || '';
+      document.getElementById('card-balance').value = Number(card.balance || 0);
+
+      document.getElementById('save-card').dataset.editId = id;
+
+      showTab('cards');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при управлении картой');
+  }
+});
 
     // Expenses
     document.getElementById('form-add-expense').addEventListener('submit', ()=>{ document.getElementById('save-expense').click(); });
@@ -642,49 +813,356 @@ function populateSelects(){
     document.getElementById('reset-filters').addEventListener('click', ()=>{ currentFilters = { cardId:'', categoryId:'' }; document.getElementById('filter-card').value=''; document.getElementById('filter-category').value=''; renderExpensesList(); });
 
     // Categories
-    document.getElementById('form-add-category').addEventListener('submit', ()=>{ document.getElementById('save-category').click(); });
-    document.getElementById('save-category').addEventListener('click', ()=>{
-      const name = document.getElementById('category-name').value.trim(); if (!name) return alert('Введите название категории');
-      state.categories.push({ id: uid('cat'), name }); persistAll(); renderAll(); document.getElementById('category-name').value='';
-    });
-    document.getElementById('reset-categories').addEventListener('click', ()=>{ if (!confirm('Сбросить категории к демо-наборам?')) return; state.categories = demo.categories.map(c=> ({ ...c, id: uid('cat') })); state.expenses = state.expenses.map((e,i)=> ({ ...e, categoryId: state.categories[i % state.categories.length].id })); persistAll(); renderAll(); });
+    /* ===========================
+   Categories — Supabase handlers
+   =========================== */
+
+// Добавить категорию
+document.getElementById('save-category').addEventListener('click', async () => {
+  try {
+    const input = document.getElementById('category-name');
+    const name = input.value.trim();
+
+    if (!name) {
+      alert('Введите название категории');
+      return;
+    }
+
+    await dataService.saveCategory({ name });
+
+    await dataService.loadAll();
+    renderAll();
+
+    input.value = '';
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при добавлении категории');
+  }
+});
+
+// Управление категориями (rename / delete)
+document.getElementById('categories-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+  if (!id || !action) return;
+
+  try {
+    const category = state.categories.find(c => c.id === id);
+    if (!category) return;
+
+    // DELETE
+    if (action === 'delete') {
+      const ok = confirm(
+        'Удалить категорию?\nВсе связанные расходы останутся без категории.'
+      );
+      if (!ok) return;
+
+      await dataService.deleteCategory(id);
+
+      await dataService.loadAll();
+      renderAll();
+    }
+
+    // RENAME
+    if (action === 'rename') {
+      const newName = prompt('Новое название категории', category.name);
+      if (!newName || newName.trim() === category.name) return;
+
+      await dataService.saveCategory({
+        id,
+        name: newName.trim()
+      });
+
+      await dataService.loadAll();
+      renderAll();
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при управлении категорией');
+  }
+});
+
 
     // Payments
-    document.getElementById('form-add-payment').addEventListener('submit', ()=>{ document.getElementById('save-payment').click(); });
-    document.getElementById('save-payment').addEventListener('click', ()=>{
-      const editId = document.getElementById('save-payment').dataset.editId;
-      if (editId){
-        const p = state.payments.find(x=>x.id===editId); if (!p) return;
-        p.name = document.getElementById('payment-name').value.trim();
-        p.amount = Number(document.getElementById('payment-amount').value) || 0;
-        p.cardId = document.getElementById('payment-card').value || null;
-        delete document.getElementById('save-payment').dataset.editId;
-        persistAll(); renderAll(); alert('Платёж обновлён'); return;
+    /* ===========================
+   Payments — Supabase handlers
+   =========================== */
+
+// Добавить / обновить платёж
+document.getElementById('save-payment').addEventListener('click', async () => {
+  try {
+    const btn = document.getElementById('save-payment');
+    const editId = btn.dataset.editId || null;
+
+    const name = document.getElementById('payment-name').value.trim();
+    const amount = Number(document.getElementById('payment-amount').value) || 0;
+    const cardId = document.getElementById('payment-card').value || null;
+
+    if (!name || !amount) {
+      alert('Укажи название и сумму');
+      return;
+    }
+
+    const payload = {
+      name,
+      amount,
+      card_id: cardId,
+      paid: false
+    };
+
+    // EDIT
+    if (editId) {
+      payload.id = editId;
+      await dataService.savePayment(payload);
+      delete btn.dataset.editId;
+    }
+    // CREATE
+    else {
+      await dataService.savePayment(payload);
+    }
+
+    await dataService.loadAll();
+    renderAll();
+
+    // очистка формы
+    document.getElementById('payment-name').value = '';
+    document.getElementById('payment-amount').value = '';
+    document.getElementById('payment-card').value = '';
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при сохранении платежа');
+  }
+});
+
+// Управление платежами (edit / delete / paid)
+document.getElementById('payments-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  const checkbox = e.target.closest('input[type="checkbox"]');
+
+  try {
+    // ----- CHECKBOX (PAID / UNPAID) -----
+    if (checkbox) {
+      const id = checkbox.dataset.id;
+      const payment = state.payments.find(p => p.id === id);
+      if (!payment) return;
+
+      const card = state.cards.find(c => c.id === payment.card_id);
+      if (!card) {
+        alert('Платёж не привязан к карте');
+        checkbox.checked = false;
+        return;
       }
-      const name = document.getElementById('payment-name').value.trim();
-      const amount = Number(document.getElementById('payment-amount').value) || 0;
-      const cardId = document.getElementById('payment-card').value || null;
-      if (!name || !amount) return alert('Укажи название и сумму');
-      state.payments.push({ id: uid('pay'), name, amount, cardId, paid:false }); persistAll(); renderAll(); document.getElementById('payment-name').value=''; document.getElementById('payment-amount').value=''; document.getElementById('payment-card').value='';
-    });
-    document.getElementById('clear-payment').addEventListener('click', ()=>{ document.getElementById('payment-name').value=''; document.getElementById('payment-amount').value=''; document.getElementById('payment-card').value=''; });
+
+      // отметить как оплаченный
+      if (checkbox.checked && !payment.paid) {
+        const newBalance = Number(card.balance) - Number(payment.amount);
+        if (newBalance < 0 && !confirm('Баланс станет отрицательным. Продолжить?')) {
+          checkbox.checked = false;
+          return;
+        }
+
+        await dataService.saveCard({
+          id: card.id,
+          balance: newBalance
+        });
+
+        await dataService.savePayment({
+          id: payment.id,
+          paid: true
+        });
+      }
+
+      // отменить оплату
+      if (!checkbox.checked && payment.paid) {
+        const ok = confirm('Вернуть сумму на карту?');
+        if (!ok) {
+          checkbox.checked = true;
+          return;
+        }
+
+        await dataService.saveCard({
+          id: card.id,
+          balance: Number(card.balance) + Number(payment.amount)
+        });
+
+        await dataService.savePayment({
+          id: payment.id,
+          paid: false
+        });
+      }
+
+      await dataService.loadAll();
+      renderAll();
+      return;
+    }
+
+    if (!btn) return;
+
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    if (!id || !action) return;
+
+    const payment = state.payments.find(p => p.id === id);
+    if (!payment) return;
+
+    // DELETE
+    if (action === 'del-pay') {
+      const ok = confirm('Удалить платёж?');
+      if (!ok) return;
+
+      await dataService.deletePayment(id);
+      await dataService.loadAll();
+      renderAll();
+    }
+
+    // EDIT
+    if (action === 'edit-pay') {
+      document.getElementById('payment-name').value = payment.name;
+      document.getElementById('payment-amount').value = Number(payment.amount);
+      document.getElementById('payment-card').value = payment.card_id || '';
+
+      document.getElementById('save-payment').dataset.editId = id;
+
+      showTab('payments');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка при управлении платежом');
+  }
+});
 
     // Export / Import (работают с текущим пользователем)
-    document.getElementById('export-data').addEventListener('click', ()=>{
-      const user = currentUser || '__guest__';
-      const dump = { user: user === '__guest__' ? 'guest' : user, cards: state.cards, categories: state.categories, expenses: state.expenses, payments: state.payments, exportedAt: new Date().toISOString() };
-      const blob = new Blob([JSON.stringify(dump,null,2)], { type:'application/json' }); const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `moneyflow-${user}-data.json`; a.click(); URL.revokeObjectURL(url);
-    });
+   /* ===========================
+   Export / Import — Supabase
+   =========================== */
 
-    document.getElementById('import-data').addEventListener('click', async ()=>{
-      const input = document.createElement('input'); input.type='file'; input.accept='application/json';
-      input.onchange = ()=>{ const file = input.files[0]; if (!file) return; const reader = new FileReader();
-        reader.onload = (evt)=>{ try{ const parsed = JSON.parse(evt.target.result); if (!confirm('Импортировать данные из файла? Это перезапишет текущие данные пользователя.')) return; state.cards = parsed.cards || []; state.categories = parsed.categories || []; state.expenses = parsed.expenses || []; state.payments = parsed.payments || []; persistAll(); renderAll(); alert('Импорт выполнен'); }catch(e){ alert('Не удалось прочитать файл: ' + e.message); } };
-        reader.readAsText(file);
-      };
-      input.click();
-    });
+// ---------- EXPORT ----------
+document.getElementById('export-data').addEventListener('click', () => {
+  if (!currentUser) {
+    alert('Экспорт доступен только для авторизованного пользователя');
+    return;
+  }
+
+  const dump = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    user: currentUser.email,
+    cards: state.cards,
+    categories: state.categories,
+    expenses: state.expenses,
+    payments: state.payments
+  };
+
+  const blob = new Blob(
+    [JSON.stringify(dump, null, 2)],
+    { type: 'application/json' }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `moneyflow-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+
+// ---------- IMPORT ----------
+document.getElementById('import-data').addEventListener('click', async () => {
+  if (!currentUser) {
+    alert('Импорт доступен только для авторизованного пользователя');
+    return;
+  }
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json';
+
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (
+        !data ||
+        !Array.isArray(data.cards) ||
+        !Array.isArray(data.categories) ||
+        !Array.isArray(data.expenses) ||
+        !Array.isArray(data.payments)
+      ) {
+        alert('Неверный формат файла');
+        return;
+      }
+
+      const ok = confirm(
+        'Импортировать данные?\n\n' +
+        'Все текущие данные пользователя будут УДАЛЕНЫ и заменены.'
+      );
+      if (!ok) return;
+
+      const userId = authService.userId();
+
+      // 1️⃣ удалить старые данные
+      await Promise.all([
+        supabase.from('expenses').delete().eq('user_id', userId),
+        supabase.from('payments').delete().eq('user_id', userId),
+        supabase.from('cards').delete().eq('user_id', userId),
+        supabase.from('categories').delete().eq('user_id', userId)
+      ]);
+
+      // 2️⃣ подготовить данные (user_id!)
+      const cards = data.cards.map(c => ({
+        ...c,
+        user_id: userId
+      }));
+
+      const categories = data.categories.map(c => ({
+        ...c,
+        user_id: userId
+      }));
+
+      const expenses = data.expenses.map(e => ({
+        ...e,
+        user_id: userId
+      }));
+
+      const payments = data.payments.map(p => ({
+        ...p,
+        user_id: userId
+      }));
+
+      // 3️⃣ загрузить новые данные
+      if (cards.length) await supabase.from('cards').insert(cards);
+      if (categories.length) await supabase.from('categories').insert(categories);
+      if (expenses.length) await supabase.from('expenses').insert(expenses);
+      if (payments.length) await supabase.from('payments').insert(payments);
+
+      // 4️⃣ перезагрузить состояние
+      await dataService.loadAll();
+      renderAll();
+
+      alert('Импорт успешно завершён');
+
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка при импорте данных');
+    }
+  };
+
+  input.click();
+});
+
 
     // Demo data button
     document.getElementById('add-sample-data').addEventListener('click', ()=>{

@@ -689,19 +689,9 @@
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id; const action = btn.dataset.action;
           if (action === 'delete'){
-  const hasExpensesForCard = state.expenses.some(e => e.card_id === id);
-
-  if (hasExpensesForCard) {
-    alert('Нельзя удалить карту — есть связанные расходы');
-    return;
-  }
-
-  if (!confirm('Удалить карту?')) return;
-
-  await dbDelete('cards', id);
-  await loadDataFromSupabase();
-  renderAll();
-}
+            if (!confirm('Удалить карту?')) return;
+            await dbDelete('cards', id);
+            await loadDataFromSupabase(); renderAll();
           } else if (action === 'edit'){
             const card = state.cards.find(x => x.id === id); if (!card) return;
             document.getElementById('card-name').value = card.name;

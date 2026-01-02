@@ -402,10 +402,11 @@
 const SUPABASE_URL = 'https://tzsqgwupguttgsuhbknb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO';
 
-const supabase = supabase.createClient(
+const supabase = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
+
 
 /* ===========================
    App state

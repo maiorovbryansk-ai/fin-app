@@ -54,7 +54,8 @@
     nav button{ display:flex; gap:12px; align-items:center; width:100%; background:transparent; border:0; color:inherit; padding:10px 12px; border-radius:10px; cursor:pointer; transition:all var(--trans); text-align:left; }
     nav button:hover{ background:var(--glass-2); transform:translateY(-2px); }
     nav button.active{ background:linear-gradient(90deg, rgba(124,58,237,0.12), rgba(6,182,212,0.04)); box-shadow:0 6px 18px rgba(2,6,23,0.6); }
-
+    <button class="btn" id="quick-add-income">Добавить доход</button>
+                                
     .sidebar .section-title{ color:var(--muted); font-size:12px; margin:14px 2px 4px; }
     .small{ font-size:12px; color:var(--muted); }
 
@@ -128,6 +129,7 @@
           <li><button id="tab-expenses" data-tab="expenses">🧾 Расходы</button></li>
           <li><button id="tab-categories" data-tab="categories">🏷️ Категории</button></li>
           <li><button id="tab-payments" data-tab="payments">📅 Обязательные выплаты</button></li>
+          <li><button id="tab-incomes" data-tab="incomes">💰 Доходы</button></li>
         </ul>
       </nav>
 
@@ -343,6 +345,54 @@
     </main>
   </div>
 
+  <!-- INCOMES -->
+<div id="tab-incomes-content" class="card" role="region" style="display:none;" tabindex="-1">
+  <h3 style="margin:0 0 12px 0;">Доходы</h3>
+  <div style="display:flex; gap:16px;">
+    <div style="flex:1;">
+      <div class="card">
+        <h4 style="margin:0 0 8px 0;">Добавить доход</h4>
+        <form id="form-add-income" class="form" onsubmit="return false;">
+          <input id="income-amount" type="number" step="0.01" placeholder="Сумма" required />
+          <select id="income-category" required>
+            <option value="">Выберите категорию</option>
+          </select>
+          <select id="income-card" required></select>
+          <input id="income-note" type="text" placeholder="Описание (необязательно)" />
+          <div style="display:flex; gap:8px;">
+            <button class="btn" id="save-income">Добавить</button>
+            <button class="btn" id="clear-income">Очистить</button>
+          </div>
+          <div class="muted">При добавлении — баланс выбранной карты увеличится.</div>
+        </form>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <h4 style="margin:0 0 8px 0;">История доходов</h4>
+        <div id="incomes-list" class="list"></div>
+      </div>
+    </div>
+
+    <div style="width:360px;">
+      <div class="card">
+        <h4 style="margin:0 0 8px 0;">Фильтры</h4>
+        <div class="form">
+          <select id="filter-income-card">
+            <option value="">По всем картам</option>
+          </select>
+          <select id="filter-income-category">
+            <option value="">По всем категориям</option>
+          </select>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" id="apply-income-filters">Применить</button>
+            <button class="btn" id="reset-income-filters">Сброс</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
   <!-- AUTH MODAL -->
   <div class="overlay" id="auth-overlay" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
@@ -436,7 +486,35 @@ const demo = {
   expenses: [],
   payments: []
 };
+// Обновите состояние
+let state = { 
+  cards: [], 
+  categories: [], 
+  expenses: [], 
+  payments: [], 
+  incomes: []  // ← добавьте это
+};
 
+// Добавьте в demo данные
+const demo = {
+  cards: [
+    { name: 'Основная', last4: '1234', balance: 250000, color: '#7c3aed' },
+    { name: 'Сбережения', last4: '9876', balance: 1000000, color: '#06b6d4' }
+  ],
+  categories: [
+    { name: 'Зарплата' },
+    { name: 'Фриланс' },
+    { name: 'Инвестиции' },
+    { name: 'Подарки' }
+  ],
+  expenses: [],
+  incomes: [],
+  payments: []
+};
+
+// Добавьте вкладку доходов
+const tabs = ['dashboard','cards','expenses','categories','payments','incomes']; // ← добавьте incomes
+    
 // ===== AUTH =====
 async function signup(){
   if (isProcessing) return;
@@ -575,6 +653,7 @@ async function loadDataFromSupabase(){
     const userId = currentUser.id;
     const [cardsRes, categoriesRes, expensesRes, paymentsRes] = await Promise.all([
       supabaseClient.from('cards').select('*').eq('user_id', userId),
+      supabaseClient.from('incomes').select('*').eq('user_id', userId),
       supabaseClient.from('categories').select('*').eq('user_id', userId),
       supabaseClient.from('expenses').select('*').eq('user_id', userId),
       supabaseClient.from('payments').select('*').eq('user_id', userId)
@@ -583,6 +662,7 @@ async function loadDataFromSupabase(){
     state.cards = (cardsRes.data || []).map(r => ({ ...r }));
     state.categories = (categoriesRes.data || []).map(r => ({ ...r }));
     state.expenses = (expensesRes.data || []).map(r => ({ ...r }));
+    state.incomes = (incomesRes.data || []).map(r => ({ ...r }));
     state.payments = (paymentsRes.data || []).map(r => ({ ...r }));
     
     document.getElementById('last-sync').textContent = new Date().toLocaleString();
@@ -590,14 +670,72 @@ async function loadDataFromSupabase(){
     console.error('load error', e);
   }
 }
+let currentIncomeFilters = { card_id:'', category_id:'' };
 
+function renderIncomesList(){
+  const container = document.getElementById('incomes-list'); 
+  container.innerHTML = '';
+  
+  let list = state.incomes.slice().sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  
+  if (currentIncomeFilters.card_id) list = list.filter(e => e.card_id === currentIncomeFilters.card_id);
+  if (currentIncomeFilters.category_id) list = list.filter(e => e.category_id === currentIncomeFilters.category_id);
+  
+  if (list.length === 0) { 
+    container.innerHTML = '<div class="small-muted">Нет доходов</div>'; 
+    return; 
+  }
+  
+  list.forEach(e => {
+    const cat = state.categories.find(c => c.id === e.category_id);
+    const card = state.cards.find(c => c.id === e.card_id);
+    const item = document.createElement('div'); 
+    item.className='list-item';
+    item.innerHTML = `
+      <div>
+        <div style="font-weight:600">${escapeHtml(e.note || (cat ? cat.name : 'Доход'))}</div>
+        <div class="small-muted">${cat ? escapeHtml(cat.name) : '—'} • ${new Date(e.created_at).toLocaleString()}</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <div style="font-weight:700; color: #10b981">+${fmt(Number(e.amount||0))}</div>
+        <div class="small-muted">${card ? escapeHtml(card.name) : '—'}</div>
+        <button class="btn small" data-id="${e.id}" data-action="del-inc">Удалить</button>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+
+  container.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', async () => { 
+      if (isProcessing) return;
+      isProcessing = true;
+      
+      try {
+        const id = b.dataset.id; 
+        if (!confirm('Удалить этот доход?')) {
+          isProcessing = false;
+          return;
+        }
+        
+        await dbDelete('incomes', id);
+        await loadDataFromSupabase(); 
+        renderAll();
+      } catch (err) {
+        console.error('Error deleting income:', err);
+        alert('Ошибка удаления: ' + err.message);
+      } finally {
+        isProcessing = false;
+      }
+    });
+  });
+}
+    
 function subscribeToUpdates(){
   if (!supabaseClient || !currentUser) return;
   
-  // Отписываемся от старых подписок
   unsubscribeAll();
   
-  ['cards','categories','expenses','payments'].forEach(table => {
+  ['cards','categories','expenses','payments','incomes'].forEach(table => {  // ← добавьте incomes
     const ch = supabaseClient
       .channel(`${table}-changes-${Date.now()}`)
       .on('postgres_changes', { 
@@ -606,7 +744,6 @@ function subscribeToUpdates(){
         table,
         filter: `user_id=eq.${currentUser.id}`
       }, payload => {
-        // Добавляем задержку для предотвращения дублирования
         setTimeout(() => {
           loadDataFromSupabase().then(() => renderAll());
         }, 100);
@@ -691,6 +828,7 @@ function closeAuthModal(){
   });
 }
 
+document.getElementById('quick-add-income').addEventListener('click', () => showTab('incomes'));                                                                              
 document.getElementById('tab-auth-login').addEventListener('click', () => openAuthModal('login'));
 document.getElementById('tab-auth-signup').addEventListener('click', () => openAuthModal('signup'));
 document.getElementById('close-auth').addEventListener('click', closeAuthModal);
@@ -1116,7 +1254,53 @@ function populateSelects(){
     const el = document.getElementById(id); 
     if (!el) return; 
     el.innerHTML = '';
+     const selectsIncomeCat = ['income-category', 'filter-income-category'];
+  selectsIncomeCat.forEach(id => {
+    const el = document.getElementById(id); 
+    if (!el) return; 
+    el.innerHTML = '';
     
+    if (id === 'filter-income-category'){ 
+      const opt = document.createElement('option'); 
+      opt.value=''; 
+      opt.textContent='По всем категориям'; 
+      el.appendChild(opt); 
+    }
+    
+    const optDefault = document.createElement('option');
+    optDefault.value = '';
+    optDefault.textContent = 'Выберите категорию';
+    el.appendChild(optDefault);
+    
+    state.categories.forEach(c => { 
+      const opt = document.createElement('option'); 
+      opt.value = c.id; 
+      opt.textContent = c.name; 
+      el.appendChild(opt); 
+    });
+  });
+  
+  const selectsIncomeCard = ['income-card', 'filter-income-card'];
+  selectsIncomeCard.forEach(id => {
+    const el = document.getElementById(id); 
+    if (!el) return; 
+    el.innerHTML = '';
+    
+    if (id === 'filter-income-card'){ 
+      const opt = document.createElement('option'); 
+      opt.value=''; 
+      opt.textContent='По всем картам'; 
+      el.appendChild(opt); 
+    }
+    
+    state.cards.forEach(c => { 
+      const opt = document.createElement('option'); 
+      opt.value=c.id; 
+      opt.textContent=`${c.name} • •••• ${c.last4} (${fmt(Number(c.balance||0))})`; 
+      el.appendChild(opt); 
+    });
+  });
+}
     if (id === 'filter-category'){ 
       const opt = document.createElement('option'); 
       opt.value=''; 
@@ -1154,6 +1338,77 @@ function populateSelects(){
   });
 }
 
+    
+    // Обработчик формы доходов
+document.getElementById('form-add-income').addEventListener('submit', (e) => {
+  e.preventDefault();
+  document.getElementById('save-income').click();
+});
+
+document.getElementById('save-income').addEventListener('click', async () => {
+  if (isProcessing) return;
+  isProcessing = true;
+  
+  try {
+    if (!currentUser) {
+      openAuthModal('login');
+      isProcessing = false;
+      return;
+    }
+    
+    const amount = Number(document.getElementById('income-amount').value) || 0;
+    const category_id = document.getElementById('income-category').value || null;
+    const card_id = document.getElementById('income-card').value || null;
+    const note = document.getElementById('income-note').value.trim();
+    
+    if (!amount || !card_id || !category_id) {
+      alert('Укажи сумму, карту и категорию');
+      isProcessing = false;
+      return;
+    }
+    
+    // Баланс карты автоматически обновится через триггер в базе данных
+    await dbInsert('incomes', { 
+      amount, 
+      category_id, 
+      card_id, 
+      note, 
+      created_at: new Date().toISOString() 
+    });
+    
+    await loadDataFromSupabase(); 
+    renderAll();
+    document.getElementById('income-amount').value=''; 
+    document.getElementById('income-note').value='';
+    document.getElementById('income-category').value='';
+    alert('Доход добавлен');
+  } catch (err) {
+    console.error('Error saving income:', err);
+    alert('Ошибка сохранения дохода: ' + err.message);
+  } finally {
+    isProcessing = false;
+  }
+});
+
+document.getElementById('clear-income').addEventListener('click', () => {
+  document.getElementById('income-amount').value=''; 
+  document.getElementById('income-note').value='';
+  document.getElementById('income-category').value='';
+});
+
+// Фильтры доходов
+document.getElementById('apply-income-filters').addEventListener('click', () => {
+  currentIncomeFilters.card_id = document.getElementById('filter-income-card').value || '';
+  currentIncomeFilters.category_id = document.getElementById('filter-income-category').value || '';
+  renderIncomesList();
+});
+
+document.getElementById('reset-income-filters').addEventListener('click', () => {
+  currentIncomeFilters = { card_id:'', category_id:'' };
+  document.getElementById('filter-income-card').value='';
+  document.getElementById('filter-income-category').value='';
+  renderIncomesList();
+});
 // ===== FORM HANDLERS =====
 
 // Cards
@@ -1443,6 +1698,7 @@ document.getElementById('export-data').addEventListener('click', () => {
     cards: state.cards, 
     categories: state.categories, 
     expenses: state.expenses, 
+    incomes: state.incomes,  // ← добавьте это
     payments: state.payments, 
     exportedAt: new Date().toISOString() 
   };
@@ -1605,6 +1861,7 @@ function renderAll(){
   renderExpensesList(); 
   renderCategories(); 
   renderPayments(); 
+  renderIncomesList();  // ← добавьте это
   renderChart(); 
   renderUserArea(); 
 }

@@ -10,8 +10,10 @@
   <!-- Supabase JS Client (UMD build via jsDelivr — корректный Content-Type) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
 
-  <!-- Favicon (data URI) to avoid browser 404 for /favicon.ico -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%237c3aed'/%3E%3Ctext x='50' y='58' font-size='50' text-anchor='middle' fill='white' font-family='Arial'%3EMF%3C/text%3E%3C/svg%3E">
+  <!-- Favicon (data URI) — several rel types to reduce /favicon.ico 404 -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%237c3aed'/%3E%3Ctext x='50' y='58' font-size='50' text-anchor='middle' fill='white' font-family='Arial'%3EMF%3C/text%3E%3C/svg%3E">
+  <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%237c3aed'/%3E%3Ctext x='50' y='58' font-size='50' text-anchor='middle' fill='white' font-family='Arial'%3EMF%3C/text%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%237c3aed'/%3E%3C/text%3E%3C/svg%3E">
 
   <style>
     /* ===========================
@@ -389,14 +391,15 @@
      **************************************************************************/
 
     // ===== CONFIG =====
-    // Замените эти значения на свои
-    const SUPABASE_URL = "https://tzsqgwupguttgsuhbknb.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO";
+    // Замените эти значения на свои (Project Settings → API в Supabase)
+    // вставьте сюда ваш Supabase URL и ANON KEY:
+    const SUPABASE_URL = "https://tzsqgwupguttgsuhbknb.supabase.co"; // <- замените
+    const SUPABASE_ANON_KEY = "sb_publishable_nB-DBmdfeDkjqPLQeuSxrw_mE-p30aO"; // <- замените
 
     // безопасно инициализируем supabase — если CDN не загрузился, не ломаем UI
     const createClient = window.supabase?.createClient || (window.Supabase && window.Supabase.createClient);
-    const supabase = createClient ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-    const isSupabaseReady = Boolean(supabase);
+    const supabaseClient = createClient ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+    const isSupabaseReady = Boolean(supabaseClient);
 
     // ===== State/UI =====
     let currentUser = null; // Supabase user object or null
@@ -436,7 +439,7 @@
     // ===== AUTH =====
     async function signup(){
       const authWarningEl = document.getElementById('auth-warning');
-      if (!supabase) {
+      if (!supabaseClient) {
         if (authWarningEl) authWarningEl.textContent = 'Supabase недоступен — регистрация невозможна.';
         return;
       }
@@ -447,7 +450,7 @@
          if (!email || !password) return alert('Заполни все поля');
          if (password !== password2) return alert('Пароли не совпадают');
          if (password.length < 6) return alert('Пароль должен быть минимум 6 символов');
-         const { data, error } = await supabase.auth.signUp({ email, password });
+         const { data, error } = await supabaseClient.auth.signUp({ email, password });
          if (error) throw error;
          alert('Регистрация успешна. Проверьте почту для подтверждения (если включено).');
          closeAuthModal();
@@ -459,7 +462,7 @@
 
     async function login(){
       const authWarningEl = document.getElementById('auth-warning');
-      if (!supabase) {
+      if (!supabaseClient) {
         if (authWarningEl) authWarningEl.textContent = 'Supabase недоступен — вход невозможен.';
         return;
       }
@@ -467,7 +470,7 @@
          const email = document.getElementById('login-email').value.trim();
          const password = document.getElementById('login-password').value;
          if (!email || !password) return alert('Заполни все поля');
-         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
          if (error) throw error;
          closeAuthModal();
        }catch(err){
@@ -478,13 +481,13 @@
 
     async function logout(){
       if (!confirm('Выйти из аккаунта?')) return;
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabaseClient.auth.signOut();
       if (error) alert('Ошибка выхода: ' + error.message);
     }
 
     // Listen auth changes (only if supabase client доступен)
-    if (supabase && supabase.auth && typeof supabase.auth.onAuthStateChange === 'function') {
-      supabase.auth.onAuthStateChange((event, session) => {
+    if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.onAuthStateChange === 'function') {
+      supabaseClient.auth.onAuthStateChange((event, session) => {
         currentUser = session?.user || null;
         renderUserArea();
         if (currentUser) {
@@ -502,14 +505,14 @@
 
     // ===== DB helpers =====
     async function loadDataFromSupabase(){
-      if (!supabase || !currentUser) return;
+      if (!supabaseClient || !currentUser) return;
       try {
         const userId = currentUser.id;
         const [cardsRes, categoriesRes, expensesRes, paymentsRes] = await Promise.all([
-          supabase.from('cards').select('*').eq('user_id', userId),
-          supabase.from('categories').select('*').eq('user_id', userId),
-          supabase.from('expenses').select('*').eq('user_id', userId),
-          supabase.from('payments').select('*').eq('user_id', userId)
+          supabaseClient.from('cards').select('*').eq('user_id', userId),
+          supabaseClient.from('categories').select('*').eq('user_id', userId),
+          supabaseClient.from('expenses').select('*').eq('user_id', userId),
+          supabaseClient.from('payments').select('*').eq('user_id', userId)
         ]);
         state.cards = (cardsRes.data || []).map(r => ({ ...r }));
         state.categories = (categoriesRes.data || []).map(r => ({ ...r }));
@@ -522,11 +525,11 @@
     }
 
     function subscribeToUpdates(){
-      if (!supabase || !currentUser) return;
-      subscriptions.forEach(ch => supabase.removeChannel(ch));
+      if (!supabaseClient || !currentUser) return;
+      subscriptions.forEach(ch => supabaseClient.removeChannel(ch));
       subscriptions = [];
       ['cards','categories','expenses','payments'].forEach(table => {
-        const ch = supabase
+        const ch = supabaseClient
           .channel(`${table}-changes`)
           .on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
             loadDataFromSupabase().then(()=> renderAll());
@@ -537,20 +540,20 @@
     }
 
     async function dbInsert(table, data){
-      if (!supabase || !currentUser) throw new Error('No supabase or user');
+      if (!supabaseClient || !currentUser) throw new Error('No supabase or user');
       const payload = { ...data, user_id: currentUser.id };
-      const { data: res, error } = await supabase.from(table).insert([payload]).select().single();
+      const { data: res, error } = await supabaseClient.from(table).insert([payload]).select().single();
       if (error) { alert('Ошибка сохранения: ' + error.message); throw error; }
       return res;
     }
     async function dbUpdate(table, id, data){
-      if (!supabase || !currentUser) throw new Error('No supabase or user');
-      const { error } = await supabase.from(table).update(data).eq('id', id).eq('user_id', currentUser.id);
+      if (!supabaseClient || !currentUser) throw new Error('No supabase or user');
+      const { error } = await supabaseClient.from(table).update(data).eq('id', id).eq('user_id', currentUser.id);
       if (error) { alert('Ошибка обновления: ' + error.message); throw error; }
     }
     async function dbDelete(table, id){
-      if (!supabase || !currentUser) throw new Error('No supabase or user');
-      const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', currentUser.id);
+      if (!supabaseClient || !currentUser) throw new Error('No supabase or user');
+      const { error } = await supabaseClient.from(table).delete().eq('id', id).eq('user_id', currentUser.id);
       if (error) { alert('Ошибка удаления: ' + error.message); throw error; }
     }
 
@@ -997,8 +1000,8 @@
     // Initial load: check session (safely)
     (async ()=>{
       try {
-        if (supabase && supabase.auth && typeof supabase.auth.getSession === 'function'){
-          const { data } = await supabase.auth.getSession();
+        if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.getSession === 'function'){
+          const { data } = await supabaseClient.auth.getSession();
           currentUser = data?.session?.user || null;
           if (currentUser) {
             await loadDataFromSupabase();
@@ -1024,10 +1027,10 @@
       if (!confirm('Полностью очистить все данные MoneyFlow для текущего пользователя?')) return;
       if (!currentUser) return alert('Нужен залогиненный пользователь');
       // delete all rows for user
-      await supabase.from('expenses').delete().eq('user_id', currentUser.id);
-      await supabase.from('payments').delete().eq('user_id', currentUser.id);
-      await supabase.from('categories').delete().eq('user_id', currentUser.id);
-      await supabase.from('cards').delete().eq('user_id', currentUser.id);
+      await supabaseClient.from('expenses').delete().eq('user_id', currentUser.id);
+      await supabaseClient.from('payments').delete().eq('user_id', currentUser.id);
+      await supabaseClient.from('categories').delete().eq('user_id', currentUser.id);
+      await supabaseClient.from('cards').delete().eq('user_id', currentUser.id);
       await loadDataFromSupabase(); renderAll(); alert('Данные удалены');
     };
 

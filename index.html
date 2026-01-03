@@ -68,6 +68,31 @@
     .btn{ background: linear-gradient(90deg,#2b3141,#16181c); border:0; padding:8px 12px; border-radius:10px; cursor:pointer; color:#e6eef6; font-weight:600; box-shadow: 0 6px 18px rgba(2,6,23,0.35); transition: transform var(--trans), box-shadow var(--trans); }
     .btn:active{ transform:translateY(1px); }
 
+    /* Кнопка Google */
+    .btn-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: white;
+      color: #333;
+      border: 1px solid #ddd;
+      padding: 10px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 500;
+      width: 100%;
+      transition: all var(--trans);
+    }
+    .btn-google:hover {
+      background: #f8f8f8;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .btn-google svg {
+      width: 20px;
+      height: 20px;
+    }
+
     .grid{ display:grid; grid-template-columns: 380px 1fr; gap:16px; align-items:start; }
 
     .chart-wrap{ padding:14px; border-radius:var(--radius-sm); background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); }
@@ -102,7 +127,25 @@
     .tabs{ display:flex; gap:8px; margin-bottom:12px; }
     .tabs button{ flex:1; padding:8px; border-radius:8px; border:0; background:transparent; color:var(--muted); cursor:pointer; }
     .tabs button.active{ background:rgba(124,58,237,0.12); color:#eaf2ff; }
-    
+
+    /* Разделитель */
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 20px 0;
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+    }
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .divider span {
+      padding: 0 12px;
+    }
+
     /* Responsive */
     @media (max-width:980px){ .app{ grid-template-columns: 1fr; padding:14px; } .summary{ flex-direction:column; } .grid{ grid-template-columns: 1fr; } .sidebar{ position:relative; top:auto; min-height:auto; } }
   </style>
@@ -408,6 +451,23 @@
             <button class="btn" id="btn-login">Войти</button>
             <button class="btn" id="btn-login-guest" title="Войти как гость">Гость (demo)</button>
           </div>
+          
+          <!-- Разделитель -->
+          <div class="divider">
+            <span>или войти через</span>
+          </div>
+          
+          <!-- Кнопка Google OAuth -->
+          <button type="button" class="btn-google" id="btn-google-auth">
+            <svg viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Войти через Google
+          </button>
+          
           <div id="auth-warning" class="muted" style="margin-top:8px;">Используется аутентификация Supabase.</div>
         </form>
       </div>
@@ -429,7 +489,7 @@
   </div>
 
   <script>
-   /**************************************************************************
+/**************************************************************************
  * Supabase integration — replaces local accounts/localStorage
  **************************************************************************/
 
@@ -459,6 +519,7 @@ document.addEventListener('click', (e) => {
   const t = e.target;
   if (t && t.matches && t.matches('#btn-open-login')) { openAuthModal('login'); }
   if (t && t.matches && t.matches('#btn-open-signup')) { openAuthModal('signup'); }
+  if (t && t.matches && t.matches('#btn-google-auth')) { loginWithGoogle(); }
 });
 
 // Utils
@@ -563,6 +624,36 @@ async function login(){
     console.error('login error', err);
     if (authWarningEl) authWarningEl.textContent = 'Ошибка входа: ' + (err.message || err);
   } finally {
+    isProcessing = false;
+  }
+}
+
+async function loginWithGoogle(){
+  if (isProcessing) return;
+  isProcessing = true;
+  
+  const authWarningEl = document.getElementById('auth-warning');
+  if (!supabaseClient) {
+    if (authWarningEl) authWarningEl.textContent = 'Supabase недоступен — вход невозможен.';
+    isProcessing = false;
+    return;
+  }
+  
+  try {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    
+    if (error) throw error;
+    // После успешного входа Supabase автоматически перенаправит
+    // и обработает callback, пользователь будет залогинен
+    
+  } catch(err) {
+    console.error('Google OAuth error', err);
+    if (authWarningEl) authWarningEl.textContent = 'Ошибка входа через Google: ' + (err.message || err);
     isProcessing = false;
   }
 }
@@ -743,12 +834,27 @@ function closeAuthModal(){
   });
 }
 
-document.getElementById('tab-auth-login').addEventListener('click', () => openAuthModal('login'));
-document.getElementById('tab-auth-signup').addEventListener('click', () => openAuthModal('signup'));
-document.getElementById('close-auth').addEventListener('click', closeAuthModal);
-document.getElementById('btn-cancel-signup').addEventListener('click', closeAuthModal);
-document.getElementById('btn-signup').addEventListener('click', signup);
-document.getElementById('btn-login').addEventListener('click', login);
+// Безопасное добавление обработчиков событий
+function safeAddEventListener(id, event, handler) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.addEventListener(event, handler);
+  } else {
+    console.warn(`Element #${id} not found, skipping event listener`);
+  }
+}
+
+// Настройка обработчиков для элементов, которые гарантированно есть в DOM
+if (document.getElementById('tab-auth-login')) {
+  document.getElementById('tab-auth-login').addEventListener('click', () => openAuthModal('login'));
+}
+if (document.getElementById('tab-auth-signup')) {
+  document.getElementById('tab-auth-signup').addEventListener('click', () => openAuthModal('signup'));
+}
+safeAddEventListener('close-auth', 'click', closeAuthModal);
+safeAddEventListener('btn-cancel-signup', 'click', closeAuthModal);
+safeAddEventListener('btn-signup', 'click', signup);
+safeAddEventListener('btn-login', 'click', login);
 
 // ===== USER AREA =====
 function renderUserArea(){
@@ -767,7 +873,7 @@ function renderUserArea(){
       </div>
     `;
     area.appendChild(userDiv);
-    document.getElementById('btn-logout-small').addEventListener('click', logout);
+    safeAddEventListener('btn-logout-small', 'click', logout);
   } else {
     const guestDiv = document.createElement('div');
     guestDiv.innerHTML = `
@@ -1298,12 +1404,12 @@ function populateSelects(){
 // ===== FORM HANDLERS =====
 
 // Cards
-document.getElementById('form-add-card').addEventListener('submit', (e) => {
+safeAddEventListener('form-add-card', 'submit', (e) => {
   e.preventDefault();
   document.getElementById('save-card').click();
 });
 
-document.getElementById('save-card').addEventListener('click', async () => {
+safeAddEventListener('save-card', 'click', async () => {
   if (isProcessing) return;
   isProcessing = true;
   
@@ -1348,12 +1454,12 @@ document.getElementById('save-card').addEventListener('click', async () => {
 });
 
 // Expenses
-document.getElementById('form-add-expense').addEventListener('submit', (e) => {
+safeAddEventListener('form-add-expense', 'submit', (e) => {
   e.preventDefault();
   document.getElementById('save-expense').click();
 });
 
-document.getElementById('save-expense').addEventListener('click', async () => {
+safeAddEventListener('save-expense', 'click', async () => {
   if (isProcessing) return;
   isProcessing = true;
   
@@ -1407,7 +1513,7 @@ document.getElementById('save-expense').addEventListener('click', async () => {
 });
 
 // Quick expense (на дашборде)
-document.getElementById('quick-add-expense-2').addEventListener('click', async () => {
+safeAddEventListener('quick-add-expense-2', 'click', async () => {
   if (isProcessing) return;
   isProcessing = true;
   
@@ -1457,19 +1563,19 @@ document.getElementById('quick-add-expense-2').addEventListener('click', async (
   }
 });
 
-document.getElementById('clear-expense').addEventListener('click', () => {
+safeAddEventListener('clear-expense', 'click', () => {
   document.getElementById('expense-amount').value=''; 
   document.getElementById('expense-note').value=''; 
 });
 
 // Filters
-document.getElementById('apply-filters').addEventListener('click', () => {
+safeAddEventListener('apply-filters', 'click', () => {
   currentFilters.card_id = document.getElementById('filter-card').value || '';
   currentFilters.category_id = document.getElementById('filter-category').value || '';
   renderExpensesList();
 });
 
-document.getElementById('reset-filters').addEventListener('click', () => {
+safeAddEventListener('reset-filters', 'click', () => {
   currentFilters = { card_id:'', category_id:'' };
   document.getElementById('filter-card').value='';
   document.getElementById('filter-category').value='';
@@ -1477,12 +1583,12 @@ document.getElementById('reset-filters').addEventListener('click', () => {
 });
 
 // Incomes (новый функционал)
-document.getElementById('form-add-income').addEventListener('submit', (e) => {
+safeAddEventListener('form-add-income', 'submit', (e) => {
   e.preventDefault();
   document.getElementById('save-income').click();
 });
 
-document.getElementById('save-income').addEventListener('click', async () => {
+safeAddEventListener('save-income', 'click', async () => {
   if (isProcessing) return;
   isProcessing = true;
   
@@ -1527,20 +1633,20 @@ document.getElementById('save-income').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('clear-income').addEventListener('click', () => {
+safeAddEventListener('clear-income', 'click', () => {
   document.getElementById('income-amount').value=''; 
   document.getElementById('income-note').value='';
   document.getElementById('income-category').value='';
 });
 
 // Income Filters
-document.getElementById('apply-income-filters').addEventListener('click', () => {
+safeAddEventListener('apply-income-filters', 'click', () => {
   currentIncomeFilters.card_id = document.getElementById('filter-income-card').value || '';
   currentIncomeFilters.category_id = document.getElementById('filter-income-category').value || '';
   renderIncomesList();
 });
 
-document.getElementById('reset-income-filters').addEventListener('click', () => {
+safeAddEventListener('reset-income-filters', 'click', () => {
   currentIncomeFilters = { card_id:'', category_id:'' };
   document.getElementById('filter-income-card').value='';
   document.getElementById('filter-income-category').value='';
@@ -1548,12 +1654,12 @@ document.getElementById('reset-income-filters').addEventListener('click', () => 
 });
 
 // Categories
-document.getElementById('form-add-category').addEventListener('submit', (e) => {
+safeAddEventListener('form-add-category', 'submit', (e) => {
   e.preventDefault();
   document.getElementById('save-category').click();
 });
 
-document.getElementById('save-category').addEventListener('click', async () => {
+safeAddEventListener('save-category', 'click', async () => {
   if (isProcessing) return;
   isProcessing = true;
   
@@ -1584,12 +1690,12 @@ document.getElementById('save-category').addEventListener('click', async () => {
 });
 
 // Payments
-document.getElementById('form-add-payment').addEventListener('submit', (e) => {
+safeAddEventListener('form-add-payment', 'submit', (e) => {
   e.preventDefault();
   document.getElementById('save-payment').click();
 });
 
-document.getElementById('save-payment').addEventListener('click', async () => {
+safeAddEventListener('save-payment', 'click', async () => {
   if (isProcessing) return;
   isProcessing = true;
   
@@ -1642,14 +1748,14 @@ document.getElementById('save-payment').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('clear-payment').addEventListener('click', () => {
+safeAddEventListener('clear-payment', 'click', () => {
   document.getElementById('payment-name').value=''; 
   document.getElementById('payment-amount').value=''; 
   document.getElementById('payment-card').value=''; 
 });
 
 // Export / Import
-document.getElementById('export-data').addEventListener('click', () => {
+safeAddEventListener('export-data', 'click', () => {
   const dump = { 
     user: currentUser ? currentUser.email : 'guest', 
     cards: state.cards, 
@@ -1671,7 +1777,7 @@ document.getElementById('export-data').addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
-document.getElementById('import-data').addEventListener('click', async () => {
+safeAddEventListener('import-data', 'click', async () => {
   if (!currentUser) {
     openAuthModal('login');
     return;
@@ -1759,7 +1865,7 @@ document.getElementById('import-data').addEventListener('click', async () => {
 });
 
 // Demo button
-document.getElementById('add-sample-data').addEventListener('click', async () => {
+safeAddEventListener('add-sample-data', 'click', async () => {
   if (isProcessing) return;
   isProcessing = true;
   
@@ -1812,15 +1918,15 @@ function showTab(name){
 }
 
 tabs.forEach(t => {
-  document.getElementById('tab-'+t).addEventListener('click', () => showTab(t));
+  safeAddEventListener('tab-'+t, 'click', () => showTab(t));
 });
 
 // Кнопки для быстрого перехода
-document.getElementById('quick-add-card').addEventListener('click', () => showTab('cards'));
-document.getElementById('show-cards-tab').addEventListener('click', () => showTab('cards'));
-document.getElementById('quick-add-expense').addEventListener('click', () => showTab('expenses'));
-document.getElementById('open-expenses-tab').addEventListener('click', () => showTab('expenses'));
-document.getElementById('quick-add-income').addEventListener('click', () => showTab('incomes')); // ← добавлено
+safeAddEventListener('quick-add-card', 'click', () => showTab('cards'));
+safeAddEventListener('show-cards-tab', 'click', () => showTab('cards'));
+safeAddEventListener('quick-add-expense', 'click', () => showTab('expenses'));
+// safeAddEventListener('open-expenses-tab', 'click', () => showTab('expenses')); // Эта кнопка отсутствует в HTML
+safeAddEventListener('quick-add-income', 'click', () => showTab('incomes'));
 
 function renderAll(){ 
   populateSelects(); 
@@ -1902,88 +2008,6 @@ window._moneyflow_clear_all = async function(){
     isProcessing = false;
   }
 };
-
-// ===== Supabase diagnostics =====
-function appendDiag(msg){
-  const el = document.getElementById('diag-log');
-  const time = new Date().toLocaleTimeString();
-  if (el) { 
-    el.textContent = `${el.textContent}\n[${time}] ${msg}`; 
-    el.scrollTop = el.scrollHeight; 
-  }
-  console.log('[diag]', msg);
-}
-
-async function diagnoseSupabase(){
-  const scriptUrl = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js';
-  appendDiag('Starting Supabase diagnostics...');
-
-  // 1) check window.supabase
-  if (!window.supabase){
-    appendDiag('window.supabase: NOT FOUND');
-  } else {
-    appendDiag('window.supabase: present');
-    appendDiag('createClient: ' + (typeof window.supabase.createClient === 'function' ? 'yes' : 'no'));
-  }
-
-  // 2) fetch the UMD script to inspect headers (CORS / content-type)
-  try {
-    appendDiag('Fetching UMD script to check availability and content-type...');
-    const res = await fetch(scriptUrl, { method:'GET', mode:'cors' });
-    appendDiag(`Fetch status: ${res.status} ${res.statusText}`);
-    const ct = res.headers.get('content-type') || '—';
-    appendDiag(`Content-Type: ${ct}`);
-    if (!res.ok) appendDiag('Warning: script fetch returned non-OK status.');
-    if (!ct.includes('javascript') && !ct.includes('application/javascript') && !ct.includes('text/javascript')){
-      appendDiag('Warning: script Content-Type is not JavaScript; browser may refuse to execute (nosniff).');
-    }
-  } catch(err) {
-    appendDiag('Fetch error: ' + (err.message || err));
-  }
-
-  // 3) try to init client (safely) and call getSession
-  if (typeof window.supabase?.createClient === 'function'){
-    try {
-      appendDiag('Trying to init supabase client and call auth.getSession()...');
-      const tmp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      if (tmp && tmp.auth && typeof tmp.auth.getSession === 'function'){
-        try {
-          const { data } = await tmp.auth.getSession();
-          appendDiag('auth.getSession() OK — session present: ' + (data?.session ? 'yes' : 'no'));
-        } catch(err) {
-          appendDiag('auth.getSession() failed: ' + (err.message || err));
-        }
-      } else {
-        appendDiag('Created client does not expose auth.getSession()');
-      }
-    } catch(err) {
-      appendDiag('Error while creating client / calling API: ' + (err.message || err));
-    }
-  } else {
-    appendDiag('createClient function not available — cannot instantiate client.');
-  }
-
-  appendDiag('Diagnostics finished.');
-}
-
-// global error handlers to surface issues
-window.addEventListener('error', (ev) => {
-  appendDiag('Global error: ' + (ev.message || ev.error || ev.type || ev.filename || JSON.stringify(ev)));
-});
-
-window.addEventListener('unhandledrejection', (ev) => {
-  appendDiag('Unhandled rejection: ' + (ev.reason?.message || JSON.stringify(ev.reason)));
-});
-
-// wire diag button
-(function wireDiag(){
-  const btn = document.getElementById('diag-supabase');
-  if (!btn) return;
-  btn.addEventListener('click', () => { 
-    document.getElementById('diag-log').textContent = ''; 
-    diagnoseSupabase(); 
-  });
-})();
   </script>
 </body>
 </html>
